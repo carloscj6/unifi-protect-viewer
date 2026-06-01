@@ -626,6 +626,7 @@ async function applyLiveviewV4andNewer() {
     timelineButtons:
       '[class^=LiveViewGridSlot__PlayerOptions] [class^=PlayerTopLeftControls__ButtonGroup]',
     viewportErrors: '[class^=ViewportError__Wrapper]',
+    styledNav: '[class^=Nav__StyledNavigation]',
   };
 
   console.log('[upv] v4+: waiting for fullscreen wrapper');
@@ -637,6 +638,7 @@ async function applyLiveviewV4andNewer() {
   applyStyle(document.body, 'background', 'black');
   applyStyle(document.getElementsByTagName('header')[0], 'display', 'none');
   applyStyle(document.getElementsByTagName('nav')[0], 'display', 'none');
+  applyStyle(document.querySelectorAll(SEL.styledNav)[0], 'display', 'none');
 
   console.log('[upv] v4+: hiding dashboard chrome, expanding viewport');
   applyStyle(document.querySelectorAll(SEL.widgets)[0], 'display', 'none');
