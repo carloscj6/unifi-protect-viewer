@@ -153,4 +153,4 @@ run(`git push origin ${tag}`);
 
 // ── Done ──────────────────────────────────────────────────────────────────────
 
-console.log(`\n✓ Released ${tag} successfully.\n`);
+console.log(`\nReleased ${tag} successfully.\n`);

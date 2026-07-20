@@ -148,9 +148,9 @@ async function main() {
 
     renameOutputDir();
 
-    console.log('\n[build] ✓ Done.\n');
+    console.log('\n[build] Done.\n');
   } catch (err) {
-    console.error('\n[build] ✗ Build failed:', err.message || err);
+    console.error('\n[build] Build failed:', err.message || err);
     process.exit(1);
   } finally {
     removeBuildConfig();

@@ -10,19 +10,19 @@ A lightweight Tauri 2 app that auto-logs into your Unifi Protect instance and pr
 
 ## Features
 
-- 🔐 **Auto-login** — credentials are stored securely and used on every start
-- 🖥️ **Fullscreen liveview** — all Unifi UI chrome is hidden automatically
-- 📋 **Multiple profiles** — save any number of NVRs or dashboards and switch between them instantly
-- ⚙️ **In-app configuration** — edit settings at any time without restarting (`F10` or tray menu)
-- 🔗 **URL-only mode** — quickly switch liveviews without re-entering credentials
-- 🔑 **Smart credential handling** — password is only overwritten when explicitly changed
-- ⏳ **Loading overlay** — animated screen while cameras initialise, with 20 s auto-fallback
-- 🔄 **Session auto-renewal** — re-logs in before the session token expires
-- 🪟 **System tray** — minimize to tray, show/hide, switch profiles, open settings, quit
-- 🔒 **Self-signed certificates** — accepted automatically
-- 💾 **Portable mode** — config stored next to the executable (USB-stick friendly)
-- 📐 **Persistent window geometry** — size and position remembered between sessions
-- 🚀 **Startup arguments** — set monitor, fullscreen and profile via command-line for kiosk/shortcut setups
+- **Auto-login** — credentials are stored securely and used on every start
+- **Fullscreen liveview** — all Unifi UI chrome is hidden automatically
+- **Multiple profiles** — save any number of NVRs or dashboards and switch between them instantly
+- **In-app configuration** — edit settings at any time without restarting (`F10` or tray menu)
+- **URL-only mode** — quickly switch liveviews without re-entering credentials
+- **Smart credential handling** — password is only overwritten when explicitly changed
+- **Loading overlay** — animated screen while cameras initialise, with 20 s auto-fallback
+- **Session auto-renewal** — re-logs in before the session token expires
+- **System tray** — minimize to tray, show/hide, switch profiles, open settings, quit
+- **Self-signed certificates** — accepted automatically
+- **Portable mode** — config stored next to the executable (USB-stick friendly)
+- **Persistent window geometry** — size and position remembered between sessions
+- **Startup arguments** — set monitor, fullscreen and profile via command-line for kiosk/shortcut setups
 
 ---
 
@@ -188,7 +188,7 @@ Set the **Program/script** to the `.exe` path and put the arguments in the **Add
 --monitor 2 --fullscreen --profile "Warehouse"
 ```
 
-> 💡 **Tip:** Create one shortcut per camera location and pin them to your taskbar — each shortcut can target a different monitor, profile and fullscreen setting.
+> **Tip:** Create one shortcut per camera location and pin them to your taskbar — each shortcut can target a different monitor, profile and fullscreen setting.
 
 ---
 
@@ -254,7 +254,7 @@ node scripts/build.js
 
 When `UPV_PORTABLE=true`, the config is stored in a `store/` directory next to the executable instead of the OS user-data folder. All profiles are included. Ideal for USB sticks or kiosk setups.
 
-> ⚠️ Set a strong `UPV_ENCRYPTION_KEY` before distributing portable builds.
+> **Warning:** Set a strong `UPV_ENCRYPTION_KEY` before distributing portable builds.
 
 Window size/position is **not** persisted in portable mode.
 
