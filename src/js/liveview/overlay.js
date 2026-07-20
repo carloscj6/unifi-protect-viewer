@@ -67,7 +67,18 @@ function showOverlay() {
   overlayEl.innerHTML = OVERLAY_HTML;
   document.body.appendChild(overlayEl);
 
-  setTimeout(() => hideOverlay('fallback timeout'), FALLBACK_TIMEOUT_MS);
+  setTimeout(() => {
+    setOverlayStatus('Still connecting', 'Check the camera network, retry, or open settings.');
+    const inner = document.getElementById(`${IDS.overlay}_inner`);
+    if (!inner || document.getElementById(`${IDS.overlay}_actions`)) return;
+    const actions = document.createElement('div');
+    actions.id = `${IDS.overlay}_actions`;
+    actions.innerHTML = `
+      <button onclick="location.reload()">Retry now</button>
+      <button onclick="window.electronAPI.openConfig()">Settings</button>
+    `;
+    inner.appendChild(actions);
+  }, FALLBACK_TIMEOUT_MS);
 }
 
 /**

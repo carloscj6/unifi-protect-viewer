@@ -597,6 +597,9 @@
           <div class="upv-hotkeys">
             <div class="upv-hotkey-row"><kbd>F9</kbd><span>Restart</span></div>
             <div class="upv-hotkey-row"><kbd>F10</kbd><span>Switch Profile</span></div>
+            <div class="upv-hotkey-row">
+              <kbd>Ctrl Shift F10</kbd><span>Technician Settings</span>
+            </div>
             <div class="upv-hotkey-row"><kbd>F11</kbd><span>Toggle Fullscreen</span></div>
           </div>
 
@@ -661,6 +664,24 @@
                 <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
               Startup
+            </button>
+            <button class="upv-content-tab" id="tabDiagnostics" onclick="showTab('diagnostics')">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1v.1h-4v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1-.4h-.1v-4H3A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1v-.1h4V3a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.14.38.36.72.6 1 .27.27.62.4 1 .4h.1v4H21a1.7 1.7 0 0 0-1.6.6z"
+                />
+              </svg>
+              Support
             </button>
           </div>
 
@@ -999,6 +1020,27 @@
                   </div>
 
                   <div class="upv-btn-group">
+                    <button
+                      class="upv-btn upv-btn--secondary"
+                      id="testConnectionBtn"
+                      onclick="testConnection()"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                      </svg>
+                      Test Connection
+                    </button>
                     <button class="upv-btn upv-btn--primary" id="saveBtn" onclick="save()">
                       <span id="btnSpinner" class="upv-spinner"></span>
                       <svg
@@ -1137,7 +1179,7 @@
                   <div class="upv-tip-list">
                     <div class="upv-tip-row">
                       <kbd>F10</kbd>
-                      <span>Cycle profiles during liveview or via system tray</span>
+                      <span>Open profile selection during liveview</span>
                     </div>
                     <div class="upv-tip-row">
                       <kbd>F11</kbd>
@@ -1259,6 +1301,32 @@
                     </svg>
                     Display &amp; Fullscreen
                   </div>
+
+                  <label class="upv-toggle-row" for="startWithWindows">
+                    <div class="upv-toggle-row__label">
+                      <span class="upv-toggle-row__title">Start Cameras with Windows</span>
+                      <span class="upv-toggle-row__desc"
+                        >Launches this viewer automatically when the store PC signs in</span
+                      >
+                    </div>
+                    <span class="upv-toggle">
+                      <input type="checkbox" id="startWithWindows" checked />
+                      <span class="upv-toggle__track"></span>
+                    </span>
+                  </label>
+
+                  <label class="upv-toggle-row" for="autoReconnect">
+                    <div class="upv-toggle-row__label">
+                      <span class="upv-toggle-row__title">Reconnect Automatically</span>
+                      <span class="upv-toggle-row__desc"
+                        >Retries the camera wall when the network or console is unavailable</span
+                      >
+                    </div>
+                    <span class="upv-toggle">
+                      <input type="checkbox" id="autoReconnect" checked />
+                      <span class="upv-toggle__track"></span>
+                    </span>
+                  </label>
 
                   <label class="upv-toggle-row" for="startupFullscreen">
                     <div class="upv-toggle-row__label">
@@ -1411,6 +1479,47 @@
             </div>
             <!-- /grid -->
           </div>
+
+          <div class="upv-tab-panel" id="panelDiagnostics">
+            <div class="upv-content-grid">
+              <div>
+                <div class="upv-cfg-card">
+                  <div class="upv-cfg-card__title">System Status</div>
+                  <div class="upv-info-card" id="diagnosticsSummary">
+                    <p>Open this tab to load the current viewer status.</p>
+                  </div>
+                  <div class="upv-btn-group">
+                    <button class="upv-btn upv-btn--primary" onclick="loadDiagnostics()">
+                      Refresh Status
+                    </button>
+                    <button class="upv-btn upv-btn--secondary" onclick="createSupportBundle()">
+                      Create Support Report
+                    </button>
+                    <button
+                      class="upv-btn upv-btn--secondary"
+                      onclick="window.electronAPI.openLogFile(null)"
+                    >
+                      Open Log File
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="upv-info-card">
+                  <h4 class="upv-info-card__title">On-site Recovery</h4>
+                  <p>Use these controls when the camera wall cannot recover automatically.</p>
+                  <div class="upv-btn-group">
+                    <button class="upv-btn upv-btn--primary" onclick="window.electronAPI.restart()">
+                      Restart Viewer
+                    </button>
+                    <button class="upv-btn upv-btn--secondary" onclick="navigateAfterSave()">
+                      Return to Cameras
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- /panel startup -->
         </div>
         <!-- /main-inner -->
@@ -1443,7 +1552,7 @@
 
       // ── Tab navigation ───────────────────────────────────────────────────────
       function showTab(tab) {
-        ['connection', 'startup'].forEach((t) => {
+        ['connection', 'startup', 'diagnostics'].forEach((t) => {
           document
             .getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1))
             .classList.toggle('upv-content-tab--active', t === tab);
@@ -1451,6 +1560,55 @@
             .getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1))
             .classList.toggle('upv-tab-panel--active', t === tab);
         });
+        if (tab === 'diagnostics') loadDiagnostics();
+      }
+
+      async function loadDiagnostics() {
+        const target = document.getElementById('diagnosticsSummary');
+        if (!target) return;
+        target.innerHTML = '<p>Loading status…</p>';
+        try {
+          const info = await window.electronAPI.diagnosticsGet();
+          target.innerHTML =
+            '<p><strong class="upv-text-primary">Viewer:</strong> version ' +
+            escHtml(info.version) +
+            '</p>' +
+            '<p><strong class="upv-text-primary">Profiles:</strong> ' +
+            info.profiles +
+            '</p>' +
+            '<p><strong class="upv-text-primary">Starts with Windows:</strong> ' +
+            (info.autostartEnabled ? 'Enabled' : 'Disabled') +
+            '</p>' +
+            '<p><strong class="upv-text-primary">Password protection:</strong> ' +
+            (info.storageProtected ? 'Windows protected storage' : 'Platform storage') +
+            '</p>' +
+            '<p><strong class="upv-text-primary">Log:</strong> ' +
+            escHtml(info.logPath) +
+            '</p>';
+        } catch (error) {
+          target.innerHTML = '<p>Could not load diagnostics: ' + escHtml(String(error)) + '</p>';
+        }
+      }
+
+      async function createSupportBundle() {
+        try {
+          const path = await window.electronAPI.supportBundleCreate();
+          document
+            .getElementById('diagnosticsSummary')
+            .insertAdjacentHTML(
+              'beforeend',
+              '<p><strong class="upv-text-primary">Support report created:</strong> ' +
+                escHtml(path) +
+                '</p>',
+            );
+        } catch (error) {
+          document
+            .getElementById('diagnosticsSummary')
+            .insertAdjacentHTML(
+              'beforeend',
+              '<p>Could not create support report: ' + escHtml(String(error)) + '</p>',
+            );
+        }
       }
 
       // ── Edit mode ─────────────────────────────────────────────────────────────
@@ -1609,6 +1767,27 @@
       }
 
       // ── Save profile ──────────────────────────────────────────────────────────
+      async function testConnection() {
+        const button = document.getElementById('testConnectionBtn');
+        const url = document.getElementById('url').value.trim();
+        hideMsg();
+        if (!url) {
+          showMsg('Enter the UniFi liveview URL first.');
+          return;
+        }
+        button.disabled = true;
+        button.lastChild.textContent = ' Testing…';
+        try {
+          const result = await window.electronAPI.connectionTest(url);
+          showMsg(result.message, result.ok ? 'success' : 'error');
+        } catch (error) {
+          showMsg(String(error));
+        } finally {
+          button.disabled = false;
+          button.lastChild.textContent = ' Test Connection';
+        }
+      }
+
       async function save() {
         const saveBtn = document.getElementById('saveBtn');
         const spinner = document.getElementById('btnSpinner');
@@ -1745,6 +1924,8 @@
       async function loadStartupTab() {
         const settings = await window.electronAPI.startupSettingsGet();
         refreshStartupProfileDropdown(settings.profileId || '');
+        document.getElementById('startWithWindows').checked = settings.startWithWindows !== false;
+        document.getElementById('autoReconnect').checked = settings.autoReconnect !== false;
         document.getElementById('startupFullscreen').checked = !!settings.fullscreen;
         document.getElementById('displayRow').style.display = settings.fullscreen
           ? 'block'
@@ -1779,9 +1960,17 @@
       async function saveStartup() {
         const profileId = document.getElementById('startupProfile').value || null;
         const fullscreen = document.getElementById('startupFullscreen').checked;
+        const startWithWindows = document.getElementById('startWithWindows').checked;
+        const autoReconnect = document.getElementById('autoReconnect').checked;
         const displayIndex = parseInt(document.getElementById('startupDisplay').value) || 0;
 
-        window.electronAPI.startupSettingsSet({ profileId, fullscreen, displayIndex });
+        await window.electronAPI.startupSettingsSet({
+          profileId,
+          fullscreen,
+          displayIndex,
+          startWithWindows,
+          autoReconnect,
+        });
 
         const msgEl = document.getElementById('startupMsg');
         document.getElementById('startupMsgText').textContent = 'Startup settings saved.';
@@ -1797,6 +1986,11 @@
           profiles = (await window.electronAPI.profilesLoad()) || [];
           activeProfileId = await window.electronAPI.activeProfileGet();
           if (profiles.length === 0) {
+            document.querySelector('.upv-main-header__title').textContent = 'Set Up Store Cameras';
+            document.querySelector('.upv-main-header__sub').textContent =
+              'Connect this PC to the UniFi camera wall. Startup and recovery defaults are already enabled.';
+            document.getElementById('tabStartup').style.display = 'none';
+            document.getElementById('tabDiagnostics').style.display = 'none';
             const blank = {
               id: generateId(),
               name: 'Profile 1',

@@ -136,6 +136,8 @@ describe('preload.js – API surface contract', () => {
       'activeProfileSet',
       'configLoad',
       'configSave',
+      'connectionTest',
+      'diagnosticsGet',
       'displaysGet',
       'launchProfile',
       'openConfig',
@@ -150,6 +152,7 @@ describe('preload.js – API surface contract', () => {
       'startupProfileSet',
       'startupSettingsGet',
       'startupSettingsSet',
+      'supportBundleCreate',
       'switchNextProfile',
       'toggleFullscreen',
     ].sort();
@@ -408,6 +411,14 @@ describe('preload.js – keyboard handler', () => {
     assert.strictEqual(after[0].channel, 'switchNextProfile');
   });
 
+  test('Ctrl+Shift+F10 opens technician configuration', () => {
+    const { keydownListeners, sentMessages, baseIdx } = runPreloadInSandbox();
+    keydownListeners[0]({ key: 'F10', ctrlKey: true, shiftKey: true });
+    const messages = nonLogMessages(sentMessages.slice(baseIdx));
+    assert.strictEqual(messages.length, 1);
+    assert.strictEqual(messages[0].channel, 'openConfig');
+  });
+
   test('F9: sends exactly 1 non-log message (not 2)', () => {
     const { keydownListeners, sentMessages, baseIdx } = runPreloadInSandbox();
     keydownListeners[0]({ key: 'F9' });
@@ -420,10 +431,14 @@ describe('preload.js – keyboard handler', () => {
     assert.strictEqual(nonLogMessages(sentMessages.slice(baseIdx)).length, 1);
   });
 
-  test('F11: sends no non-log message (handled by native/registerF11Handler)', () => {
+  test('F11: toggles fullscreen through the Tauri bridge', () => {
     const { keydownListeners, sentMessages, baseIdx } = runPreloadInSandbox();
-    keydownListeners[0]({ key: 'F11' });
-    assert.strictEqual(nonLogMessages(sentMessages.slice(baseIdx)).length, 0);
+    let prevented = false;
+    keydownListeners[0]({ key: 'F11', preventDefault: () => (prevented = true) });
+    const after = nonLogMessages(sentMessages.slice(baseIdx));
+    assert.strictEqual(after.length, 1);
+    assert.strictEqual(after[0].channel, 'toggleFullscreen');
+    assert.strictEqual(prevented, true);
   });
 
   test('unregistered key (F5): sends no non-log message', () => {

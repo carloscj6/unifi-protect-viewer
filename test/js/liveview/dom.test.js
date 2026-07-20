@@ -384,10 +384,9 @@ describe('preload.js overlay – setOverlayStatus', () => {
 // § OVERLAY – hideOverlay
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('preload.js overlay – hideOverlay', () => {
+describe('preload.js overlay – recovery and hideOverlay', () => {
   /**
-   * hideOverlay is triggered by the fallback setTimeout inside showOverlay.
-   * Strategy: let DOMContentLoaded fire, then invoke the fallback timer.
+   * Recovery is triggered by the fallback setTimeout inside showOverlay.
    */
   function buildHideCapture() {
     // Pre-create tracked elements that showOverlay will inject
@@ -455,8 +454,7 @@ describe('preload.js overlay – hideOverlay', () => {
     // Fire DOMContentLoaded → showOverlay → schedules fallback timer (20000 ms)
     if (domContentLoadedHandler) domContentLoadedHandler();
 
-    // Drain ALL timers including timers that are added during execution
-    // (hideOverlay adds a 450ms remove-timer when the 20000ms fallback fires).
+    // Drain all timers, including the automatic retry timer.
     let i = 0;
     while (i < pendingTimers.length) {
       try {
@@ -468,22 +466,22 @@ describe('preload.js overlay – hideOverlay', () => {
     return { overlayEl, styleEl };
   }
 
-  test('adds class "fade-out" to overlay element', () => {
+  test('shows recovery controls when camera loading times out', () => {
     const { overlayEl } = buildHideCapture();
     assert.ok(
-      overlayEl.classList.contains('fade-out'),
-      'hideOverlay must add class "fade-out" to the overlay element',
+      overlayEl.classList.contains('is-recovering'),
+      'timeout must add the recovery state to the overlay',
     );
   });
 
-  test('calls remove() on overlay element after fade-out', () => {
+  test('keeps the recovery overlay visible', () => {
     const { overlayEl } = buildHideCapture();
-    assert.strictEqual(overlayEl._removed, true, 'overlay element must be removed after fade-out');
+    assert.strictEqual(overlayEl._removed, false, 'recovery overlay must remain visible');
   });
 
-  test('calls remove() on style element after fade-out', () => {
+  test('keeps recovery styles installed', () => {
     const { styleEl } = buildHideCapture();
-    assert.strictEqual(styleEl._removed, true, 'style element must be removed after fade-out');
+    assert.strictEqual(styleEl._removed, false, 'recovery styles must remain installed');
   });
 
   test('hideOverlay does nothing when overlay element does not exist', () => {

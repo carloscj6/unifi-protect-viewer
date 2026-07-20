@@ -13,37 +13,43 @@ A lightweight Tauri 2 app that auto-logs into your Unifi Protect instance and pr
 - **Auto-login** — credentials are stored securely and used on every start
 - **Fullscreen liveview** — all Unifi UI chrome is hidden automatically
 - **Multiple profiles** — save any number of NVRs or dashboards and switch between them instantly
-- **In-app configuration** — edit settings at any time without restarting (`F10` or tray menu)
+- **Technician configuration** — edit settings and open support with `Ctrl+Shift+F10`
 - **URL-only mode** — quickly switch liveviews without re-entering credentials
 - **Smart credential handling** — password is only overwritten when explicitly changed
-- **Loading overlay** — animated screen while cameras initialise, with 20 s auto-fallback
+- **Automatic recovery** — retry controls and automatic reload when camera loading stalls
 - **Session auto-renewal** — re-logs in before the session token expires
-- **System tray** — minimize to tray, show/hide, switch profiles, open settings, quit
+- **Windows autostart** — launches the camera wall when the store account signs in
+- **Single instance** — repeated launches focus the running viewer
 - **Self-signed certificates** — accepted automatically
-- **Portable mode** — config stored next to the executable (USB-stick friendly)
-- **Persistent window geometry** — size and position remembered between sessions
-- **Startup arguments** — set monitor, fullscreen and profile via command-line for kiosk/shortcut setups
+- **Protected credentials** — passwords are encrypted with Windows DPAPI
+- **On-site support tools** — connection test, durable logs, diagnostics, and support report
 
 ---
 
 ## Screenshots
 
 ### Liveview
+
 ![Liveview](screenshots/liveview.png)
 
 ### Profile selection
+
 ![Profile selection](screenshots/profile-selection.png)
 
 ### Configuration – Connection / Profiles
+
 ![Configuration – Connection / Profiles](screenshots/configuration-connection.png)
 
 ### Configuration – Startup
+
 ![Configuration – Startup](screenshots/configuration-startup.png)
 
 ### Loading overlay
+
 ![Loading overlay](screenshots/loading.png)
 
 ### Error page
+
 ![Error page](screenshots/wrong_configuration.png)
 
 ---
@@ -52,12 +58,12 @@ A lightweight Tauri 2 app that auto-logs into your Unifi Protect instance and pr
 
 Unifi Protect Viewer supports saving **multiple profiles**. Each profile stores an independent set of:
 
-| Field            | Description                                                                     |
-|------------------|---------------------------------------------------------------------------------|
-| **Profile name** | A label shown in the sidebar and tray menu (e.g. "Front Entrance", "Warehouse") |
-| **Liveview URL** | Full URL to your liveview (copy from the browser address bar)                   |
-| **Username**     | Unifi Protect / UnifiOS login                                                   |
-| **Password**     | Your password                                                                   |
+| Field            | Description                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| **Profile name** | A label shown in configuration and profile selection (e.g. "Front Entrance") |
+| **Liveview URL** | Full URL to your liveview (copy from the browser address bar)                |
+| **Username**     | Unifi Protect / UnifiOS login                                                |
+| **Password**     | Your password                                                                |
 
 Profiles can point to **different NVRs**, **different dashboards on the same NVR**, or anything else — there are no restrictions.
 
@@ -67,10 +73,9 @@ When **more than one profile** is saved and no startup profile has been set, the
 
 Check **"Always start with this profile"** to skip the selection screen in the future and go straight to that profile's liveview. You can clear this preference at any time in the configuration editor.
 
-
 ### Managing profiles
 
-Open the configuration editor (`F10` or tray → **Edit Configuration**).
+Open the configuration editor with `Ctrl+Shift+F10`.
 
 - **Add** a new profile with the **+** button in the sidebar
 - **Switch** between profiles by clicking them in the sidebar
@@ -86,7 +91,7 @@ Open the configuration editor (`F10` or tray → **Edit Configuration**).
 Start the application — the setup screen appears automatically on first launch.
 
 | Field            | Description                                                   |
-|------------------|---------------------------------------------------------------|
+| ---------------- | ------------------------------------------------------------- |
 | **Profile name** | Optional display label for this profile                       |
 | **Liveview URL** | Full URL to your liveview (copy from the browser address bar) |
 | **Username**     | Unifi Protect / UnifiOS login                                 |
@@ -95,7 +100,7 @@ Start the application — the setup screen appears automatically on first launch
 ### Edit Modes
 
 | Mode          | What changes                                               |
-|---------------|------------------------------------------------------------|
+| ------------- | ---------------------------------------------------------- |
 | **URL only**  | Updates only the liveview URL – credentials stay unchanged |
 | **Full edit** | Allows updating username and/or password                   |
 
@@ -115,98 +120,22 @@ https://192.168.1.1/protect/liveview/635e65bd000c1c0387005a5f
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|---|---|
-| `F9` | Restart the application |
-| `F10` | Open profile selection (2+ profiles) or configuration editor (1 profile) |
-| `F11` | Toggle fullscreen |
+| Key                | Action                                                |
+| ------------------ | ----------------------------------------------------- |
+| `F9`               | Restart the application                               |
+| `F10`              | Open profile selection when multiple profiles exist   |
+| `Ctrl+Shift+F10`   | Open technician configuration and support             |
+| `F11`              | Toggle fullscreen                                     |
 
-### F10 behaviour in detail
-
-| Context                                        | Result                             |
-|------------------------------------------------|------------------------------------|
-| Liveview, 1 profile saved                      | Opens the configuration editor     |
-| Liveview, 2+ profiles saved                    | Opens the profile selection screen |
-| Configuration / profile selection / error page | Opens the configuration editor     |
-
----
-
-## Command-line Arguments
-
-Startup arguments let you control **monitor**, **fullscreen mode** and the **profile** to load — directly from a shortcut, script or task scheduler. They are **runtime-only overrides** and do not modify saved settings.
-
-### Available arguments
-
-| Argument              | Description                                                                 |
-|-----------------------|-----------------------------------------------------------------------------|
-| `--monitor <n>`       | Launch on monitor **n** (1 = primary, 2 = second monitor, …)               |
-| `--fullscreen`        | Start in fullscreen mode                                                    |
-| `--profile <name>`    | Load the named profile on startup (case-insensitive, exact name match)      |
-
-**Behaviour:**
-- CLI arguments take **priority over saved startup settings** (they do not overwrite them).
-- If `--profile` is given but no profile with that name exists, the app falls back to the stored startup profile or the profile-selection screen as usual.
-- If `--monitor` exceeds the number of connected displays, it is clamped to the last available display.
-- `--fullscreen` and `--monitor` can be used independently — you can move to a different monitor without enabling fullscreen.
-
-### Examples
-
-**Windows – portable executable (PowerShell / Command Prompt):**
-
-```powershell
-# Start fullscreen on the second monitor with the "Warehouse" profile
-.\unifi-protect-viewer.exe --monitor 2 --fullscreen --profile "Warehouse"
-
-# Start on monitor 2 without fullscreen
-.\unifi-protect-viewer.exe --monitor 2 --profile "Front Door"
-
-# Start fullscreen on the primary monitor
-.\unifi-protect-viewer.exe --fullscreen
-
-# Start a specific profile without any display override
-.\unifi-protect-viewer.exe --profile "Office NVR"
-```
-
-**Development (`npm start`):**
-
-```bash
-# npm run start will not forward extra args directly, use node/electron instead:
-npx electron . --monitor 2 --fullscreen --profile "Warehouse"
-```
-
-**Windows Shortcut:**  
-Right-click your desktop shortcut → *Properties* → append the arguments to the **Target** field:
-
-```
-"C:\...\unifi-protect-viewer.exe" --monitor 2 --fullscreen --profile "Warehouse"
-```
-
-**Windows Task Scheduler:**  
-Set the **Program/script** to the `.exe` path and put the arguments in the **Add arguments** field:
-
-```
---monitor 2 --fullscreen --profile "Warehouse"
-```
-
-> **Tip:** Create one shortcut per camera location and pin them to your taskbar — each shortcut can target a different monitor, profile and fullscreen setting.
-
----
-
-## Tray Menu
-
-Right-click the system-tray icon for:
-
-**Show / Hide** · **Edit Configuration** · **Switch Profile** *(list of all saved profiles with the active one checked)* · **Restart** · **Reset & Restart** · **Quit**
-
-Clicking a profile in the **Switch Profile** submenu loads it immediately without restarting.
-
-![Tray menu with profile switcher](screenshots/tray-menu.png)
+Configuration remains directly available during first-run setup and from the recovery screen.
 
 ---
 
 ## Installation
 
 Download a pre-built release from the Releases page, or build it yourself (see below).
+
+For a dedicated store PC, follow [Store Camera PC Deployment](docs/STORE_DEPLOYMENT.md).
 
 ---
 
@@ -234,15 +163,16 @@ The `UPV_*` environment variables and portable-build scripts below describe the 
 
 All build options are controlled via environment variables — no source files need to be changed.
 
-| Variable | Default | Description |
-|---|---|---|
-| `UPV_PLATFORM` | host platform | `win32` · `darwin` · `linux` |
-| `UPV_ARCH` | host arch | `x64` · `ia32` · `arm64` |
-| `UPV_PORTABLE` | `false` | `true` → portable build |
-| `UPV_OUT_DIR` | `builds` | output directory |
-| `UPV_ENCRYPTION_KEY` | `****` | encryption key for portable config store |
+| Variable             | Default       | Description                              |
+| -------------------- | ------------- | ---------------------------------------- |
+| `UPV_PLATFORM`       | host platform | `win32` · `darwin` · `linux`             |
+| `UPV_ARCH`           | host arch     | `x64` · `ia32` · `arm64`                 |
+| `UPV_PORTABLE`       | `false`       | `true` → portable build                  |
+| `UPV_OUT_DIR`        | `builds`      | output directory                         |
+| `UPV_ENCRYPTION_KEY` | `****`        | encryption key for portable config store |
 
 **PowerShell example:**
+
 ```powershell
 $env:UPV_PLATFORM="linux"; $env:UPV_ARCH="arm64"; $env:UPV_PORTABLE="true"
 node scripts/build.js
@@ -310,11 +240,11 @@ Each profile is stored as a JSON object in the encrypted config store:
       "name": "Living Room NVR",
       "url": "https://192.168.1.1/protect/dashboard/635e…",
       "username": "admin",
-      "password": "<encrypted>"
-    }
+      "password": "<encrypted>",
+    },
   ],
-  "activeProfileId": "uuid-v4",   // currently loaded profile
-  "startupProfileId": "uuid-v4"   // auto-selected on launch (null = show selector)
+  "activeProfileId": "uuid-v4", // currently loaded profile
+  "startupProfileId": "uuid-v4", // auto-selected on launch (null = show selector)
 }
 ```
 

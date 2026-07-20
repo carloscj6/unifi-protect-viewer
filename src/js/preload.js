@@ -111,6 +111,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startupSettingsSet: (settings) => ipc.send('startupSettingsSet', settings),
   /** Returns a list of all connected displays with index, label and bounds. */
   displaysGet: () => ipc.invoke('displaysGet'),
+  /** Verifies that the configured UniFi console host is reachable. */
+  connectionTest: (url) => ipc.invoke('connectionTest', url),
+  /** Returns non-secret runtime information for on-site troubleshooting. */
+  diagnosticsGet: () => ipc.invoke('diagnosticsGet'),
+  /** Creates a non-secret support report and opens its folder. */
+  supportBundleCreate: () => ipc.invoke('supportBundleCreate'),
   /** Cycles to the next profile (F10). */
   switchNextProfile: () => ipc.send('switchNextProfile'),
   /**
@@ -121,6 +127,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 console.log('[upv] preload initialised – IPC bridge exposed to renderer');
+
+// Native watchdog heartbeat. If the WebView becomes unresponsive for more
+// than two minutes, the desktop process restarts the viewer automatically.
+if (typeof setInterval === 'function') {
+  setInterval(() => ipc.send('upv:heartbeat'), 30_000);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // § Keyboard shortcuts
@@ -133,11 +145,19 @@ window.addEventListener('keydown', (event) => {
       ipc.send('restart');
       break;
     case 'F10':
-      console.log('[upv] hotkey F10 → switchProfile');
-      ipc.send('switchNextProfile');
+      if (event.ctrlKey && event.shiftKey) {
+        console.log('[upv] technician hotkey → configuration');
+        ipc.send('openConfig');
+      } else {
+        console.log('[upv] hotkey F10 → profile selection');
+        ipc.send('switchNextProfile');
+      }
       break;
-    // Note: F11 is handled in the main process via before-input-event
-    // because Electron intercepts it natively before it reaches the renderer.
+    case 'F11':
+      console.log('[upv] hotkey F11 toggle fullscreen');
+      ipc.send('toggleFullscreen');
+      event.preventDefault?.();
+      break;
   }
 });
 
@@ -419,6 +439,10 @@ function showOverlay() {
         @keyframes __upv_spin{to{transform:rotate(360deg);}}
         #${OVERLAY_IDS.text}{font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;font-weight:600;color:#e8ecf4;margin:0;}
         #${OVERLAY_IDS.sub}{font-family:'Segoe UI',system-ui,sans-serif;font-size:12px;color:#55607a;margin:0;}
+        #${OVERLAY_IDS.overlay}_actions{display:none;gap:8px;margin-top:6px;}
+        #${OVERLAY_IDS.overlay}.is-recovering #${OVERLAY_IDS.overlay}_actions{display:flex;}
+        #${OVERLAY_IDS.overlay}_actions button{border:1px solid #26324a;border-radius:7px;padding:8px 13px;background:#172033;color:#e8ecf4;font:600 12px 'Segoe UI',system-ui,sans-serif;cursor:pointer;}
+        #${OVERLAY_IDS.overlay}_actions button:first-child{background:#006fff;border-color:#006fff;color:white;}
     `;
   document.head.appendChild(styleEl);
 
@@ -430,11 +454,32 @@ function showOverlay() {
             <div id="${OVERLAY_IDS.overlay}_ring"></div>
             <p id="${OVERLAY_IDS.text}">Loading cameras\u2026</p>
             <p id="${OVERLAY_IDS.sub}">Please wait</p>
+            <div id="${OVERLAY_IDS.overlay}_actions">
+              <button onclick="location.reload()">Retry now</button>
+              <button onclick="window.electronAPI.openConfig()">Settings</button>
+            </div>
         </div>
     `;
   document.body.appendChild(el);
 
-  setTimeout(() => hideOverlay('fallback timeout'), OVERLAY_FALLBACK_MS);
+  setTimeout(() => showRecoveryState(), OVERLAY_FALLBACK_MS);
+}
+
+async function showRecoveryState() {
+  const overlay = document.getElementById(OVERLAY_IDS.overlay);
+  if (!overlay) return;
+  overlay.classList.add('is-recovering');
+  setOverlayStatus(
+    'Still connecting',
+    'Check the network or retry. Automatic retry in 15 seconds.',
+  );
+  console.log('[upv] camera load timed out; recovery controls shown');
+  try {
+    const settings = await window.electronAPI.startupSettingsGet();
+    if (settings.autoReconnect !== false) setTimeout(() => location.reload(), 15_000);
+  } catch (_) {
+    setTimeout(() => location.reload(), 15_000);
+  }
 }
 
 function setOverlayStatus(text, sub) {
