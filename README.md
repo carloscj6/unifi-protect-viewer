@@ -1,6 +1,6 @@
 # <img src="src/img/128.png" width="40" height="40" valign="middle"> Unifi Protect Viewer
 
-A clean Electron app that auto-logs into your Unifi Protect instance and presents the camera liveview in a distraction-free fullscreen layout — no headers, no navigation, no clutter.
+A lightweight Tauri 2 app that auto-logs into your Unifi Protect instance and presents the camera liveview in a distraction-free fullscreen layout — no headers, no navigation, no clutter.
 
 > Tested with Unifi Protect **v2.x – v6.x** running on UDM-Pro / UDM-SE / CloudKey Gen2+.
 
@@ -215,36 +215,22 @@ Download a pre-built release from the Releases page, or build it yourself (see b
 ### Prerequisites
 
 ```bash
+# Node.js 20+, Rust, and the platform prerequisites from tauri.app
 npm install
 ```
 
 ### Local builds
 
 ```bash
-# Current platform / arch (reads env vars or falls back to host)
+# Build native installers for the current platform
 npm run build
-
-# Explicit targets
-npm run build:win:x64
-npm run build:win:ia32
-npm run build:mac:x64
-npm run build:mac:arm64
-npm run build:linux:x64
-npm run build:linux:arm64
-
-# Portable variants (append :portable to any target above)
-npm run build:win:x64:portable
-npm run build:linux:arm64:portable
 ```
 
-All output lands in `builds/` and is automatically renamed to include the version:
-```
-builds/unifi-protect-viewer-win32-x64-1.0.0/
-builds/unifi-protect-viewer-win32-x64-1.0.0-portable/
-builds/unifi-protect-viewer-linux-arm64-1.0.0-portable/
-```
+Bundles are written below `src-tauri/target/release/bundle/`.
 
-### Build environment variables
+### Legacy Electron build options
+
+The `UPV_*` environment variables and portable-build scripts below describe the retired Electron packager and are retained only as migration history. They are not used by Tauri.
 
 All build options are controlled via environment variables — no source files need to be changed.
 
@@ -264,7 +250,7 @@ node scripts/build.js
 
 ---
 
-## Portable Mode
+## Portable Mode (legacy Electron only)
 
 When `UPV_PORTABLE=true`, the config is stored in a `store/` directory next to the executable instead of the OS user-data folder. All profiles are included. Ideal for USB sticks or kiosk setups.
 

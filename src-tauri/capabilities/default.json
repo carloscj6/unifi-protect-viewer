@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main viewer window permissions",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://*", "https://*"]
+  },
+  "permissions": ["core:default"]
+}

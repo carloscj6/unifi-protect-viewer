@@ -2,24 +2,11 @@
   "name": "unifi-protect-viewer",
   "version": "1.1.1",
   "description": "Distraction-free fullscreen liveview for Unifi Protect — auto-login, session renewal, dark theme and system tray support.",
-  "main": "src/main.js",
   "scripts": {
-    "start": "electron --ignore=builds .",
-    "build": "node scripts/build.js",
+    "start": "tauri dev",
+    "build": "tauri build",
     "test": "node scripts/run-tests.js",
     "test:coverage": "node scripts/run-tests.js --coverage",
-    "build:win:x64": "cross-env UPV_PLATFORM=win32 UPV_ARCH=x64 node scripts/build.js",
-    "build:win:ia32": "cross-env UPV_PLATFORM=win32 UPV_ARCH=ia32 node scripts/build.js",
-    "build:mac:x64": "cross-env UPV_PLATFORM=darwin UPV_ARCH=x64 node scripts/build.js",
-    "build:mac:arm64": "cross-env UPV_PLATFORM=darwin UPV_ARCH=arm64 node scripts/build.js",
-    "build:linux:x64": "cross-env UPV_PLATFORM=linux UPV_ARCH=x64 node scripts/build.js",
-    "build:linux:arm64": "cross-env UPV_PLATFORM=linux UPV_ARCH=arm64 node scripts/build.js",
-    "build:win:x64:portable": "cross-env UPV_PLATFORM=win32 UPV_ARCH=x64 UPV_PORTABLE=true node scripts/build.js",
-    "build:win:ia32:portable": "cross-env UPV_PLATFORM=win32 UPV_ARCH=ia32 UPV_PORTABLE=true node scripts/build.js",
-    "build:mac:x64:portable": "cross-env UPV_PLATFORM=darwin UPV_ARCH=x64 UPV_PORTABLE=true node scripts/build.js",
-    "build:mac:arm64:portable": "cross-env UPV_PLATFORM=darwin UPV_ARCH=arm64 UPV_PORTABLE=true node scripts/build.js",
-    "build:linux:x64:portable": "cross-env UPV_PLATFORM=linux UPV_ARCH=x64 UPV_PORTABLE=true node scripts/build.js",
-    "build:linux:arm64:portable": "cross-env UPV_PLATFORM=linux UPV_ARCH=arm64 UPV_PORTABLE=true node scripts/build.js",
     "format": "prettier --write \"src/**/*.{js,html,css}\"",
     "prepare": "node scripts/change-commit-hook-permissions.js && husky",
     "release": "node scripts/release.js"
@@ -40,14 +27,9 @@
   ],
   "author": "Sebastian Loer",
   "license": "MIT",
-  "dependencies": {
-    "electron-store": "8.2.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "cross-env": "7.0.3",
-    "electron": "39.8.9",
-    "electron-packager": "17.1.2",
-    "electron-reloader": "1.2.3",
+    "@tauri-apps/cli": "2.11.4",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "prettier": "3.8.1"

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Unifi Protect Viewer",
+  "version": "1.1.1",
+  "identifier": "com.unifiprotect.viewer",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["../src/img/128.png", "../src/img/128.ico", "../src/img/128.icns"]
+  }
+}
