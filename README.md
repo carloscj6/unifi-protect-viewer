@@ -40,7 +40,9 @@ use an owner's or administrator's everyday account unless there is no alternativ
 
 ## Installation for nontechnical users
 
-1. Obtain the `.exe` installer from your technician or release package.
+1. Download the latest signed `.exe` installer from the
+   [GitHub Releases page](https://github.com/carloscj6/unifi-protect-viewer/releases/latest), or
+   obtain it from your technician.
 2. Double-click the installer.
 3. If Windows asks for permission, select **Yes**.
 4. Follow the installer prompts.
@@ -233,6 +235,10 @@ cargo test
 cd ..
 npm run build
 ```
+
+Official releases are built on GitHub's Windows runner, Authenticode-signed, timestamped, verified,
+and published with SHA-256 checksums. Maintainers should follow [Release Process](docs/RELEASING.md)
+instead of uploading a locally built unsigned installer.
 
 ## Project structure
 

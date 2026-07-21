@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout SCM
@@ -33,7 +33,9 @@ jobs:
         run: |
           npm test
 
-      - name: Build
-        run: |
-          npm run build
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build application
+        run: npm run build -- --no-bundle
 
