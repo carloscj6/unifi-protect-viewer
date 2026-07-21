@@ -50,29 +50,33 @@ jobs:
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Import Authenticode certificate
+      - name: Create release-specific self-signed certificate
         id: certificate
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) {
-            throw 'WINDOWS_CERTIFICATE secret is required and must contain the base64-encoded PFX.'
-          }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
-            throw 'WINDOWS_CERTIFICATE_PASSWORD secret is required.'
-          }
-
-          $pfxPath = Join-Path $env:RUNNER_TEMP 'windows-signing-certificate.pfx'
-          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
-          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
-          $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
-          if (-not $certificate.HasPrivateKey) { throw 'Imported certificate does not have a private key.' }
-          if ($certificate.NotAfter -le (Get-Date)) { throw 'Code-signing certificate has expired.' }
-
+          $certificate = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject 'CN=Unifi Protect Viewer Community Release' `
+            -FriendlyName 'Unifi Protect Viewer Community Release' `
+            -KeyAlgorithm RSA `
+            -KeyLength 3072 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(1) `
+            -CertStoreLocation Cert:\CurrentUser\My
+          if (-not $certificate.HasPrivateKey) { throw 'Generated certificate has no private key.' }
           "thumbprint=$($certificate.Thumbprint)" >> $env:GITHUB_OUTPUT
-          Remove-Item -LiteralPath $pfxPath -Force
+
+          $certificateDirectory = 'src-tauri/target/release/bundle'
+          New-Item -ItemType Directory -Force -Path $certificateDirectory | Out-Null
+          Export-Certificate -Cert $certificate -FilePath "$certificateDirectory/Unifi-Protect-Viewer-${{ github.ref_name }}.cer" | Out-Null
+          @(
+            'SELF-SIGNED COMMUNITY RELEASE CERTIFICATE'
+            "SHA1 Thumbprint: $($certificate.Thumbprint)"
+            "Subject: $($certificate.Subject)"
+            "Valid From: $($certificate.NotBefore.ToUniversalTime().ToString('u'))"
+            "Valid Until: $($certificate.NotAfter.ToUniversalTime().ToString('u'))"
+            'This certificate does not establish a trusted publisher identity.'
+          ) | Set-Content "$certificateDirectory/CERTIFICATE.txt" -Encoding ascii
 
       - name: Configure Tauri certificate thumbprint
         shell: pwsh
@@ -89,15 +93,23 @@ jobs:
 
       - name: Verify Authenticode signatures
         shell: pwsh
+        env:
+          EXPECTED_THUMBPRINT: ${{ steps.certificate.outputs.thumbprint }}
         run: |
           $files = Get-ChildItem src-tauri/target/release/bundle -Recurse -File | Where-Object { $_.Extension -in '.exe', '.msi' }
           if (-not $files) { throw 'No Windows installers were produced.' }
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
-            if ($signature.Status -ne 'Valid') {
+            if (-not $signature.SignerCertificate) {
+              throw "No Authenticode signature found on $($file.Name)"
+            }
+            if ($signature.SignerCertificate.Thumbprint -ne $env:EXPECTED_THUMBPRINT) {
+              throw "Unexpected signing certificate on $($file.Name)"
+            }
+            if ($signature.Status -in 'NotSigned', 'HashMismatch') {
               throw "Invalid Authenticode signature on $($file.Name): $($signature.Status)"
             }
-            Write-Host "Verified $($file.Name) - $($signature.SignerCertificate.Subject)"
+            Write-Host "Verified signature integrity for $($file.Name) - status $($signature.Status)"
           }
 
       - name: Create SHA-256 checksums
@@ -116,6 +128,8 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/*.cer
+            src-tauri/target/release/bundle/CERTIFICATE.txt
             src-tauri/target/release/bundle/SHA256SUMS.txt
           if-no-files-found: error
 
@@ -130,4 +144,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/*.cer
+            src-tauri/target/release/bundle/CERTIFICATE.txt
             src-tauri/target/release/bundle/SHA256SUMS.txt

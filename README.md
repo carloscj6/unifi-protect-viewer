@@ -236,9 +236,24 @@ cd ..
 npm run build
 ```
 
-Official releases are built on GitHub's Windows runner, Authenticode-signed, timestamped, verified,
-and published with SHA-256 checksums. Maintainers should follow [Release Process](docs/RELEASING.md)
-instead of uploading a locally built unsigned installer.
+Official community releases are built on GitHub's Windows runner, self-signed, timestamped, checked
+for signature integrity, and published with the public certificate and SHA-256 checksums. Because
+the certificate is self-signed, Windows still reports an unknown publisher. See
+[Release Process](docs/RELEASING.md) before downloading, trusting, or publishing an installer.
+
+## Security and no-warranty notice
+
+This software is provided under the MIT License **as is**, without warranty of any kind. It is not a
+substitute for a professionally managed security, monitoring, or life-safety system. Camera access,
+account permissions, network security, physical security, legal compliance, installation decisions,
+and response to alerts remain the operator's responsibility.
+
+Self-signed releases do not prove publisher identity and do not prevent malicious redistribution.
+Download only from this repository's GitHub Releases page, compare SHA-256 checksums, inspect the
+attached public certificate, and review the source when appropriate. The maintainers cannot control
+or accept responsibility for modified copies, third-party download sites, compromised computers,
+stolen credentials, malicious extensions, network attackers, or other bad actors. Nothing in this
+notice overrides rights or obligations that cannot legally be excluded.
 
 ## Project structure
 
