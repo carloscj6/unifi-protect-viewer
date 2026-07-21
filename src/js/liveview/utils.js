@@ -5,7 +5,7 @@
  * @description Shared DOM utility functions – REFERENCE COPY ONLY.
  *
  * These functions are inlined directly into src/js/preload.js because the
- * Electron preload sandbox (contextIsolation=true) does not support loading
+ * Camera pages do not load local modules, so the runtime bundle keeps these
  * local files via require(). Edit this file for readability/review, then
  * copy changes into the matching section of preload.js.
  */

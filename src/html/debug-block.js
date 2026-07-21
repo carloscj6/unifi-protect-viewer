@@ -11,9 +11,9 @@
  *   <script>renderDebugBlock(document.getElementById('debugBlock'));</script>
  *
  * Buttons:
- *   - Open Log File   → window.electronAPI.openLogFile(null)
- *   - Open DevTools   → window.electronAPI.openDevTools()
- *   - Report Issue    → window.electronAPI.openExternal(GITHUB_ISSUES_URL)
+ *   - Open Log File   → window.__TAURI__.core.invoke('open_log_file')
+ *   - Open DevTools   → window.__TAURI__.core.invoke('open_devtools')
+ *   - Report Issue    → window.__TAURI__.core.invoke('open_external', { url: GITHUB_ISSUES_URL })
  */
 
 (function () {
@@ -80,19 +80,19 @@
 
     group.appendChild(
       makeButton('debugOpenLogBtn', ICON_LOG, 'Open Log File', function () {
-        window.electronAPI.openLogFile(null);
+        window.__TAURI__.core.invoke('open_log_file');
       }),
     );
 
     group.appendChild(
       makeButton('debugOpenDevToolsBtn', ICON_DEVTOOLS, 'Open DevTools', function () {
-        window.electronAPI.openDevTools();
+        window.__TAURI__.core.invoke('open_devtools');
       }),
     );
 
     group.appendChild(
       makeButton('debugReportIssueBtn', ICON_ISSUE, 'Report Issue on GitHub', function () {
-        window.electronAPI.openExternal(GITHUB_ISSUES_URL);
+        window.__TAURI__.core.invoke('open_external', { url: GITHUB_ISSUES_URL });
       }),
     );
 

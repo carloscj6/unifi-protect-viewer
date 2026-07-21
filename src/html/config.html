@@ -1497,7 +1497,7 @@
                     </button>
                     <button
                       class="upv-btn upv-btn--secondary"
-                      onclick="window.electronAPI.openLogFile(null)"
+                      onclick="window.__TAURI__.core.invoke('open_log_file')"
                     >
                       Open Log File
                     </button>
@@ -1509,7 +1509,10 @@
                   <h4 class="upv-info-card__title">On-site Recovery</h4>
                   <p>Use these controls when the camera wall cannot recover automatically.</p>
                   <div class="upv-btn-group">
-                    <button class="upv-btn upv-btn--primary" onclick="window.electronAPI.restart()">
+                    <button
+                      class="upv-btn upv-btn--primary"
+                      onclick="window.__TAURI__.core.invoke('restart')"
+                    >
                       Restart Viewer
                     </button>
                     <button class="upv-btn upv-btn--secondary" onclick="navigateAfterSave()">
@@ -1568,7 +1571,7 @@
         if (!target) return;
         target.innerHTML = '<p>Loading status…</p>';
         try {
-          const info = await window.electronAPI.diagnosticsGet();
+          const info = await window.__TAURI__.core.invoke('diagnostics_get');
           target.innerHTML =
             '<p><strong class="upv-text-primary">Viewer:</strong> version ' +
             escHtml(info.version) +
@@ -1592,7 +1595,7 @@
 
       async function createSupportBundle() {
         try {
-          const path = await window.electronAPI.supportBundleCreate();
+          const path = await window.__TAURI__.core.invoke('support_bundle_create');
           document
             .getElementById('diagnosticsSummary')
             .insertAdjacentHTML(
@@ -1739,15 +1742,15 @@
         document.getElementById('profileName').focus();
       }
 
-      function deleteProfile(id) {
+      async function deleteProfile(id) {
         if (profiles.length <= 1) {
           showMsg('Cannot delete the last profile.');
           return;
         }
         profiles = profiles.filter((p) => p.id !== id);
         if (activeProfileId === id) activeProfileId = profiles[0].id;
-        window.electronAPI.profilesSave(profiles);
-        window.electronAPI.activeProfileSet(activeProfileId);
+        await window.__TAURI__.core.invoke('profiles_save', { profiles: profiles });
+        await window.__TAURI__.core.invoke('active_profile_set', { id: activeProfileId });
         renderProfileList();
         loadProfileIntoForm(activeProfileId);
         refreshStartupProfileDropdown();
@@ -1778,7 +1781,7 @@
         button.disabled = true;
         button.lastChild.textContent = ' Testing…';
         try {
-          const result = await window.electronAPI.connectionTest(url);
+          const result = await window.__TAURI__.core.invoke('connection_test', { url: url });
           showMsg(result.message, result.ok ? 'success' : 'error');
         } catch (error) {
           showMsg(String(error));
@@ -1827,8 +1830,8 @@
           profiles[profileIdx] = { ...profiles[profileIdx], name, url };
           if (pv) profiles[profileIdx].protectVersion = pv;
           else delete profiles[profileIdx].protectVersion;
-          window.electronAPI.profilesSave(profiles);
-          window.electronAPI.activeProfileSet(activeProfileId);
+          await window.__TAURI__.core.invoke('profiles_save', { profiles: profiles });
+          await window.__TAURI__.core.invoke('active_profile_set', { id: activeProfileId });
           saveBtn.disabled = true;
           spinner.classList.add('upv-spinner--active');
           btnIcon.style.display = 'none';
@@ -1837,7 +1840,7 @@
             'success',
           );
           await new Promise((r) => setTimeout(r, 800));
-          navigateAfterSave();
+          await navigateAfterSave();
           return;
         }
 
@@ -1868,8 +1871,8 @@
         if (pv) updated.protectVersion = pv;
         else delete updated.protectVersion;
         profiles[profileIdx] = updated;
-        window.electronAPI.profilesSave(profiles);
-        window.electronAPI.activeProfileSet(activeProfileId);
+        await window.__TAURI__.core.invoke('profiles_save', { profiles: profiles });
+        await window.__TAURI__.core.invoke('active_profile_set', { id: activeProfileId });
         saveBtn.disabled = true;
         spinner.classList.add('upv-spinner--active');
         btnIcon.style.display = 'none';
@@ -1880,18 +1883,26 @@
           'success',
         );
         await new Promise((r) => setTimeout(r, 800));
-        navigateAfterSave();
+        await navigateAfterSave();
       }
 
       // ── Navigation helper ─────────────────────────────────────────────────────
       // After saving we navigate without a full app restart:
       //   - 1 profile  → launch it directly via launchProfile()
       //   - > 1 profile → go to profile selection screen
-      function navigateAfterSave() {
-        if (profiles.length === 1) {
-          window.electronAPI.launchProfile(profiles[0].id);
-        } else {
-          window.electronAPI.switchNextProfile();
+      async function navigateAfterSave() {
+        try {
+          if (profiles.length === 1) {
+            await window.__TAURI__.core.invoke('launch_profile', { id: profiles[0].id });
+          } else {
+            await window.__TAURI__.core.invoke('switch_next_profile');
+          }
+        } catch (error) {
+          const saveBtn = document.getElementById('saveBtn');
+          saveBtn.disabled = false;
+          document.getElementById('btnSpinner').classList.remove('upv-spinner--active');
+          document.getElementById('btnIcon').style.display = '';
+          showMsg('Saved, but the camera page could not open: ' + String(error));
         }
       }
 
@@ -1922,7 +1933,7 @@
       }
 
       async function loadStartupTab() {
-        const settings = await window.electronAPI.startupSettingsGet();
+        const settings = await window.__TAURI__.core.invoke('startup_settings_get');
         refreshStartupProfileDropdown(settings.profileId || '');
         document.getElementById('startWithWindows').checked = settings.startWithWindows !== false;
         document.getElementById('autoReconnect').checked = settings.autoReconnect !== false;
@@ -1936,7 +1947,7 @@
       async function refreshDisplayDropdown(selectedIndex) {
         const sel = document.getElementById('startupDisplay');
         try {
-          const displays = await window.electronAPI.displaysGet();
+          const displays = await window.__TAURI__.core.invoke('displays_get');
           sel.innerHTML = '';
           displays.forEach((d) => {
             const opt = document.createElement('option');
@@ -1964,12 +1975,14 @@
         const autoReconnect = document.getElementById('autoReconnect').checked;
         const displayIndex = parseInt(document.getElementById('startupDisplay').value) || 0;
 
-        await window.electronAPI.startupSettingsSet({
-          profileId,
-          fullscreen,
-          displayIndex,
-          startWithWindows,
-          autoReconnect,
+        await window.__TAURI__.core.invoke('startup_settings_set', {
+          settings: {
+            profileId,
+            fullscreen,
+            displayIndex,
+            startWithWindows,
+            autoReconnect,
+          },
         });
 
         const msgEl = document.getElementById('startupMsg');
@@ -1983,8 +1996,8 @@
         renderDebugBlock(document.getElementById('debugBlockContainer'));
         setMode('url');
         try {
-          profiles = (await window.electronAPI.profilesLoad()) || [];
-          activeProfileId = await window.electronAPI.activeProfileGet();
+          profiles = (await window.__TAURI__.core.invoke('profiles_load')) || [];
+          activeProfileId = await window.__TAURI__.core.invoke('active_profile_get');
           if (profiles.length === 0) {
             document.querySelector('.upv-main-header__title').textContent = 'Set Up Store Cameras';
             document.querySelector('.upv-main-header__sub').textContent =
@@ -2018,7 +2031,7 @@
       });
 
       function goToProfiles() {
-        window.electronAPI.switchNextProfile();
+        window.__TAURI__.core.invoke('switch_next_profile');
       }
     </script>
   </body>

@@ -240,7 +240,7 @@
         renderDebugBlock(document.getElementById('debugBlockContainer'));
         // Show "← Profile Selection" only when multiple profiles are available
         try {
-          const profiles = (await window.electronAPI.profilesLoad()) || [];
+          const profiles = (await window.__TAURI__.core.invoke('profiles_load')) || [];
           if (profiles.length > 1) {
             document.getElementById('navToProfiles').style.display = 'flex';
           }
@@ -249,17 +249,17 @@
         }
       });
       function openConfig() {
-        window.electronAPI.openConfig();
+        window.__TAURI__.core.invoke('open_config');
       }
       function restartApp() {
-        window.electronAPI.restart();
+        window.__TAURI__.core.invoke('restart');
       }
-      function resetApp() {
-        window.electronAPI.reset();
-        window.electronAPI.restart();
+      async function resetApp() {
+        await window.__TAURI__.core.invoke('reset');
+        await window.__TAURI__.core.invoke('restart');
       }
       function goToProfiles() {
-        window.electronAPI.switchNextProfile();
+        window.__TAURI__.core.invoke('switch_next_profile');
       }
     </script>
   </body>

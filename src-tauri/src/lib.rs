@@ -27,14 +27,6 @@ impl Store {
         let mut data = read_map(&path).unwrap_or_default();
         decrypt_profile_passwords(&mut data);
 
-        // One-time, non-destructive import of the Electron store.
-        if data.is_empty() {
-            if let Some(old) = electron_store_path() {
-                if let Some(imported) = read_map(&old) {
-                    data = imported;
-                }
-            }
-        }
         let store = Self {
             path,
             log_path,
@@ -219,13 +211,6 @@ fn read_map(path: &Path) -> Option<Map<String, Value>> {
         .cloned()
 }
 
-fn electron_store_path() -> Option<PathBuf> {
-    std::env::var_os("APPDATA")
-        .map(PathBuf::from)
-        .map(|p| p.join("unifi-protect-viewer").join("config.json"))
-        .filter(|p| p.is_file())
-}
-
 fn local_url(page: &str) -> Result<url::Url, String> {
     url::Url::parse(&format!("http://tauri.localhost/html/{page}")).map_err(|e| e.to_string())
 }
@@ -273,16 +258,21 @@ fn is_configured_origin(store: &Store, url: &url::Url) -> bool {
             .and_then(Value::as_str)
             .and_then(|saved| url::Url::parse(saved).ok())
             .is_some_and(|saved| {
-                saved.scheme() == url.scheme()
+                let exact_origin = saved.scheme() == url.scheme()
                     && saved.host_str() == url.host_str()
-                    && saved.port_or_known_default() == url.port_or_known_default()
+                    && saved.port_or_known_default() == url.port_or_known_default();
+                let unifi_cloud_redirect = saved.host_str() == Some("unifi.ui.com")
+                    && url.scheme() == "https"
+                    && url
+                        .host_str()
+                        .is_some_and(|host| host == "ui.com" || host.ends_with(".ui.com"));
+                exact_origin || unifi_cloud_redirect
             })
     })
 }
 
-#[tauri::command]
-fn ipc(
-    channel: String,
+fn run_native_action(
+    action: String,
     args: Vec<Value>,
     app: AppHandle,
     window: WebviewWindow,
@@ -295,7 +285,7 @@ fn ipc(
     }
     if !is_local_url(&page_url)
         && !matches!(
-            channel.as_str(),
+            action.as_str(),
             "configLoad"
                 | "startupSettingsGet"
                 | "upv:log"
@@ -307,10 +297,10 @@ fn ipc(
         )
     {
         return Err(format!(
-            "IPC channel {channel} is unavailable from the camera page"
+            "Native action {action} is unavailable from the camera page"
         ));
     }
-    match channel.as_str() {
+    match action.as_str() {
         "configLoad" => {
             let data = store.data.lock().map_err(|e| e.to_string())?;
             Ok(active_profile(&data).unwrap_or(Value::Null))
@@ -429,7 +419,7 @@ fn ipc(
             Ok(Value::Null)
         }
         "launchProfile" => {
-            launch_profile(&store, &window, first.as_str().unwrap_or_default())?;
+            navigate_to_profile(&store, &window, first.as_str().unwrap_or_default())?;
             Ok(Value::Null)
         }
         "toggleFullscreen" => {
@@ -476,8 +466,271 @@ fn ipc(
                 .store(unix_timestamp(), std::sync::atomic::Ordering::Relaxed);
             Ok(Value::Null)
         }
-        other => Err(format!("unknown IPC channel: {other}")),
+        other => Err(format!("unknown native action: {other}")),
     }
+}
+
+// Each frontend operation is an explicit Tauri command. The dispatcher below
+// remains an internal implementation detail so renderer pages never exchange
+// generic channels or emulate another desktop runtime.
+#[tauri::command]
+fn config_load(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("configLoad".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn profiles_load(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("profilesLoad".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn active_profile_get(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("activeProfileGet".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn startup_profile_get(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("startupProfileGet".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn startup_settings_get(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("startupSettingsGet".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn displays_get(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("displaysGet".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn connection_test(
+    url: String,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action(
+        "connectionTest".into(),
+        vec![Value::String(url)],
+        app,
+        window,
+        store,
+    )
+}
+#[tauri::command]
+fn diagnostics_get(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("diagnosticsGet".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn support_bundle_create(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("supportBundleCreate".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn profiles_save(
+    profiles: Value,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("profilesSave".into(), vec![profiles], app, window, store)
+}
+#[tauri::command]
+fn active_profile_set(
+    id: Value,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("activeProfileSet".into(), vec![id], app, window, store)
+}
+#[tauri::command]
+fn startup_profile_set(
+    id: Value,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("startupProfileSet".into(), vec![id], app, window, store)
+}
+#[tauri::command]
+fn startup_settings_set(
+    settings: Value,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action(
+        "startupSettingsSet".into(),
+        vec![settings],
+        app,
+        window,
+        store,
+    )
+}
+#[tauri::command]
+fn config_save(
+    config: Value,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("configSave".into(), vec![config], app, window, store)
+}
+#[tauri::command]
+fn reset(app: AppHandle, window: WebviewWindow, store: State<'_, Store>) -> Result<Value, String> {
+    run_native_action("reset".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn restart(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("restart".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn open_config(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("openConfig".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn switch_next_profile(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("switchNextProfile".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn launch_profile(
+    id: String,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action(
+        "launchProfile".into(),
+        vec![Value::String(id)],
+        app,
+        window,
+        store,
+    )
+}
+#[tauri::command]
+fn toggle_fullscreen(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("toggleFullscreen".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn set_fullscreen(window: WebviewWindow, fullscreen: bool) -> Result<(), String> {
+    window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+}
+#[cfg(target_os = "windows")]
+fn system_idle_seconds() -> u32 {
+    use windows_sys::Win32::{
+        System::SystemInformation::GetTickCount,
+        UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO},
+    };
+    let mut info = LASTINPUTINFO {
+        cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,
+        dwTime: 0,
+    };
+    if unsafe { GetLastInputInfo(&mut info) } == 0 {
+        return 0;
+    }
+    unsafe { GetTickCount() }.wrapping_sub(info.dwTime) / 1_000
+}
+
+#[cfg(not(target_os = "windows"))]
+fn system_idle_seconds() -> u32 {
+    0
+}
+#[tauri::command]
+fn open_devtools(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("openDevTools".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn open_external(
+    url: String,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action(
+        "openExternal".into(),
+        vec![Value::String(url)],
+        app,
+        window,
+        store,
+    )
+}
+#[tauri::command]
+fn open_log_file(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("openLogFile".into(), vec![], app, window, store)
+}
+#[tauri::command]
+fn viewer_log(
+    message: String,
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action(
+        "upv:log".into(),
+        vec![Value::String(message)],
+        app,
+        window,
+        store,
+    )
+}
+#[tauri::command]
+fn heartbeat(
+    app: AppHandle,
+    window: WebviewWindow,
+    store: State<'_, Store>,
+) -> Result<Value, String> {
+    run_native_action("upv:heartbeat".into(), vec![], app, window, store)
 }
 
 fn test_connection(target: &str) -> Result<Value, String> {
@@ -498,17 +751,35 @@ fn test_connection(target: &str) -> Result<Value, String> {
     if addresses.is_empty() {
         return Err(format!("Could not resolve {host}"));
     }
+    let started = std::time::Instant::now();
     let reachable = addresses
         .iter()
-        .any(|address| TcpStream::connect_timeout(address, Duration::from_secs(5)).is_ok());
+        .take(4)
+        .any(|address| TcpStream::connect_timeout(address, Duration::from_secs(3)).is_ok());
+    let elapsed_ms = started.elapsed().as_millis();
+    let looks_like_liveview = parsed.path().contains("/protect/");
     if reachable {
-        Ok(
-            json!({"ok":true,"host":host,"port":port,"message":format!("Connected to {host}:{port}")}),
-        )
+        Ok(json!({
+            "ok": true,
+            "host": host,
+            "port": port,
+            "elapsedMs": elapsed_ms,
+            "looksLikeLiveview": looks_like_liveview,
+            "message": if looks_like_liveview {
+                format!("Network connection successful. Reached {host}:{port} in {elapsed_ms} ms. Save and launch to verify the account and live view.")
+            } else {
+                format!("Reached {host}:{port} in {elapsed_ms} ms, but this does not look like a Protect live-view URL. Open the desired live view in Protect and copy its complete address.")
+            }
+        }))
     } else {
-        Ok(
-            json!({"ok":false,"host":host,"port":port,"message":format!("Could not reach {host}:{port}. Check the network, address, and UniFi console.")}),
-        )
+        Ok(json!({
+            "ok": false,
+            "host": host,
+            "port": port,
+            "elapsedMs": elapsed_ms,
+            "looksLikeLiveview": looks_like_liveview,
+            "message": format!("Could not reach {host}:{port}. Confirm this PC is on the camera network, the address is correct, and the UniFi console is powered on.")
+        }))
     }
 }
 
@@ -573,7 +844,7 @@ fn save_config(store: &Store, config: Value) -> Result<(), String> {
     store.persist()
 }
 
-fn launch_profile(store: &Store, window: &WebviewWindow, id: &str) -> Result<(), String> {
+fn navigate_to_profile(store: &Store, window: &WebviewWindow, id: &str) -> Result<(), String> {
     let mut data = store.data.lock().map_err(|e| e.to_string())?;
     let profile = profiles(&data)
         .into_iter()
@@ -587,7 +858,15 @@ fn launch_profile(store: &Store, window: &WebviewWindow, id: &str) -> Result<(),
         .to_owned();
     drop(data);
     store.persist()?;
-    navigate(window, &target)
+    let host = url::Url::parse(&target)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_owned))
+        .unwrap_or_else(|| "invalid host".into());
+    append_log(store, "app", &format!("launching profile on {host}"))?;
+    navigate(window, &target).map_err(|error| {
+        let _ = append_log(store, "app", &format!("profile launch failed: {error}"));
+        error
+    })
 }
 
 fn initial_page(store: &Store) -> WebviewUrl {
@@ -624,7 +903,11 @@ pub fn run() {
     #[cfg(target_os = "windows")]
     std::env::set_var(
         "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--ignore-certificate-errors",
+        if cfg!(debug_assertions) {
+            "--ignore-certificate-errors --remote-debugging-port=9222"
+        } else {
+            "--ignore-certificate-errors"
+        },
     );
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -634,8 +917,23 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Keep the native idle watchdog alive when the operator clicks
+                // X. The hidden viewer will return after the idle threshold.
+                api.prevent_close();
+                let _ = window.hide();
+                if let Some(store) = window.try_state::<Store>() {
+                    let _ = append_log(&store, "window", "viewer closed to background");
+                }
+            }
+        })
         .setup(|app| {
             let store = Store::load(app.handle()).map_err(std::io::Error::other)?;
+            // WebView2 keeps its encrypted UniFi cookies here, allowing valid
+            // sessions to survive application and machine restarts.
+            let webview_data_dir = app.path().app_local_data_dir()?.join("EBWebView");
+            fs::create_dir_all(&webview_data_dir)?;
             let page = initial_page(&store);
             let settings = {
                 let data = store
@@ -661,23 +959,90 @@ pub fn run() {
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize;
             app.manage(store);
-            let init = format!(
-                "{}\n{}",
-                include_str!("bridge.js"),
-                include_str!("../../src/js/preload.js")
-            );
             let mut builder = tauri::WebviewWindowBuilder::new(app, "main", page)
                 .title("Unifi Protect Viewer")
                 .inner_size(1280.0, 760.0)
                 .min_inner_size(800.0, 500.0)
                 .user_agent(USER_AGENT)
-                .initialization_script(&init);
+                .data_directory(webview_data_dir);
 
             let navigation_handle = app.handle().clone();
             builder = builder.on_navigation(move |url| {
-                navigation_handle
+                let allowed = navigation_handle
                     .try_state::<Store>()
-                    .is_some_and(|store| is_configured_origin(&store, url))
+                    .is_some_and(|store| is_configured_origin(&store, url));
+                if !allowed {
+                    if let Some(store) = navigation_handle.try_state::<Store>() {
+                        let host = url.host_str().unwrap_or("unknown host");
+                        let _ = append_log(
+                            &store,
+                            "navigation",
+                            &format!("blocked navigation to {}://{host}", url.scheme()),
+                        );
+                    }
+                }
+                allowed
+            });
+            let page_load_handle = app.handle().clone();
+            let camera_automation = include_str!("../../src/js/preload.js").to_owned();
+            builder = builder.on_page_load(move |window, payload| {
+                if let Some(store) = page_load_handle.try_state::<Store>() {
+                    let url = payload.url();
+                    let host = url.host_str().unwrap_or("local viewer");
+                    let _ = append_log(
+                        &store,
+                        "navigation",
+                        &format!("page loaded: {}://{host}{}", url.scheme(), url.path()),
+                    );
+                }
+                if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                    // Authentication may temporarily navigate through a normal
+                    // login window. As soon as Protect loads, force the native
+                    // window back into kiosk fullscreen before revealing video.
+                    if payload.url().path().contains("/protect/") {
+                        if let Err(error) = window.set_fullscreen(true) {
+                            if let Some(store) = page_load_handle.try_state::<Store>() {
+                                let _ = append_log(
+                                    &store,
+                                    "window",
+                                    &format!("could not enter camera fullscreen: {error}"),
+                                );
+                            }
+                        }
+                    }
+                    let profile = page_load_handle
+                        .try_state::<Store>()
+                        .and_then(|store| {
+                            store
+                                .data
+                                .lock()
+                                .ok()
+                                .and_then(|data| active_profile(&data))
+                        })
+                        .unwrap_or(Value::Null);
+                    let injected = format!(
+                        "window.__UPV_PROFILE__ = {};\n{}",
+                        serde_json::to_string(&profile).unwrap_or_else(|_| "null".into()),
+                        camera_automation
+                    );
+                    if let Err(error) = window.eval(injected) {
+                        if let Some(store) = page_load_handle.try_state::<Store>() {
+                            let _ = append_log(
+                                &store,
+                                "navigation",
+                                &format!("camera automation injection failed: {error}"),
+                            );
+                        }
+                    } else if let Err(error) = window.eval("startCameraPage()") {
+                        if let Some(store) = page_load_handle.try_state::<Store>() {
+                            let _ = append_log(
+                                &store,
+                                "navigation",
+                                &format!("camera automation start failed: {error}"),
+                            );
+                        }
+                    }
+                }
             });
 
             let monitors = app.available_monitors()?;
@@ -707,7 +1072,11 @@ pub fn run() {
                     .lock()
                     .map(|data| !profiles(&data).is_empty())
                     .unwrap_or(false);
-                if configured && unix_timestamp().saturating_sub(last) > 120 {
+                let is_local_page = watchdog_app
+                    .get_webview_window("main")
+                    .and_then(|window| window.url().ok())
+                    .is_some_and(|url| is_local_url(&url));
+                if configured && is_local_page && unix_timestamp().saturating_sub(last) > 120 {
                     let _ =
                         append_log(&store, "watchdog", "renderer heartbeat stopped; restarting");
                     if let Ok(exe) = std::env::current_exe() {
@@ -717,9 +1086,77 @@ pub fn run() {
                     break;
                 }
             });
+
+            // This must be native: background WebViews throttle JavaScript
+            // timers. Restore the unattended camera wall once per idle period.
+            let idle_app = app.handle().clone();
+            std::thread::spawn(move || {
+                let mut restored_for_current_idle = false;
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    if system_idle_seconds() < 60 {
+                        restored_for_current_idle = false;
+                        continue;
+                    }
+                    if restored_for_current_idle {
+                        continue;
+                    }
+                    let Some(window) = idle_app.get_webview_window("main") else {
+                        continue;
+                    };
+                    let is_camera_page = window
+                        .url()
+                        .ok()
+                        .is_some_and(|url| url.path().contains("/protect/"));
+                    if !is_camera_page {
+                        continue;
+                    }
+
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_fullscreen(true);
+                    let _ = window.set_focus();
+                    let _ = window.eval("enterUniFiFullscreen().catch(() => {})");
+                    if let Some(store) = idle_app.try_state::<Store>() {
+                        let _ = append_log(
+                            &store,
+                            "idle",
+                            "60 seconds idle; brought camera viewer to foreground and fullscreen",
+                        );
+                    }
+                    restored_for_current_idle = true;
+                }
+            });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ipc])
+        .invoke_handler(tauri::generate_handler![
+            config_load,
+            profiles_load,
+            active_profile_get,
+            startup_profile_get,
+            startup_settings_get,
+            displays_get,
+            connection_test,
+            diagnostics_get,
+            support_bundle_create,
+            profiles_save,
+            active_profile_set,
+            startup_profile_set,
+            startup_settings_set,
+            config_save,
+            reset,
+            restart,
+            open_config,
+            switch_next_profile,
+            launch_profile,
+            toggle_fullscreen,
+            set_fullscreen,
+            open_devtools,
+            open_external,
+            open_log_file,
+            viewer_log,
+            heartbeat
+        ])
         .run(tauri::generate_context!())
         .expect("error while running application");
 }
@@ -776,5 +1213,21 @@ mod tests {
             unprotect_secret(&encrypted).unwrap(),
             "store-camera-password"
         );
+    }
+
+    #[test]
+    fn connection_test_rejects_non_web_urls() {
+        assert!(test_connection("file:///camera").is_err());
+        assert!(test_connection("not a url").is_err());
+    }
+
+    #[test]
+    fn connection_test_returns_structured_failure() {
+        let result = test_connection("http://127.0.0.1:9/protect/dashboard/test").unwrap();
+        assert_eq!(result["ok"], false);
+        assert_eq!(result["host"], "127.0.0.1");
+        assert_eq!(result["port"], 9);
+        assert_eq!(result["looksLikeLiveview"], true);
+        assert!(result["elapsedMs"].is_number());
     }
 }

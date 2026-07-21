@@ -80,4 +80,38 @@ async function applyLiveviewV4andNewer() {
     .forEach((el) => applyStyle(el, 'backgroundColor', 'black'));
 }
 
+/** Enters UniFi's own live-view fullscreen layout if it is not active yet. */
+async function enterUniFiFullscreen() {
+  const revealControls = () => {
+    const x = Math.round(window.innerWidth / 2);
+    const y = Math.max(0, window.innerHeight - 24);
+    const target = document.elementFromPoint(x, y) || document.body;
+    target.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y }),
+    );
+    target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  };
+  const findButton = () =>
+    [...document.querySelectorAll('button')].find((button) => {
+      return [...button.querySelectorAll('path')].some((path) =>
+        (path.getAttribute('d') || '').startsWith('M16 3H4a1 1 0 0 0-1 1v12'),
+      );
+    });
+
+  let button = findButton();
+  const found =
+    Boolean(button) ||
+    (await waitUntil(() => {
+      try {
+        revealControls();
+      } catch (_error) {}
+      button = findButton();
+      return Boolean(button);
+    }, 20_000));
+  if (!found) return false;
+  simulateClick(button || findButton());
+  await wait(750);
+  return true;
+}
+
 // (no module.exports – this file is a reference copy, not a runtime module)

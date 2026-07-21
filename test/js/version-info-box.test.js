@@ -13,7 +13,7 @@
  *
  * Uses ONLY node:test + node:assert/strict.
  * No jsdom. Pure string/regex analysis of the HTML source.
- * No Electron runtime launched.
+ * No desktop runtime launched.
  */
 
 const { test, describe } = require('node:test');

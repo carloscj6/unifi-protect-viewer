@@ -2,21 +2,23 @@
 
 /**
  * @file preload.js
- * @description Electron preload script – runs in the renderer sandbox.
+ * @description Tauri initialization script for camera-page automation.
  *
- * IMPORTANT: With contextIsolation=true, only require('electron') and
- * Node built-ins are available here. Importing local files via require()
- * does NOT work. Therefore all liveview logic is contained in this single
- * file. The authoritative source copies live in src/js/liveview/ for
- * readability; this file is the runtime bundle.
+ * This file is injected by Tauri on both local viewer pages and authorized
+ * UniFi camera pages. All native operations use explicit Tauri commands.
  *
  * Responsibilities:
- *  1. Expose a typed IPC bridge to the renderer via contextBridge.
+ *  1. Call explicit native Tauri commands.
  *  2. Register global keyboard shortcuts (F9 / F10).
  *  3. Drive the Unifi Protect liveview automation after page load.
  */
 
-const { contextBridge, ipcRenderer } = require('electron');
+const invokeTauri = (command, args = {}) => {
+  const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
+  if (!invoke)
+    return Promise.reject(new Error('Native Tauri commands are unavailable on this page'));
+  return invoke(command, args);
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // § Persistent log forwarding
@@ -24,7 +26,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 /**
  * Overrides console.log to forward own-application logs ([upv ...]) to the
- * Electron main process via IPC for persistent file logging.
+ * native Tauri backend for persistent file logging.
  *
  * Rules:
  *  - Original console.log is ALWAYS called → DevTools still shows all logs.
@@ -49,7 +51,7 @@ function installConsoleLogOverride() {
 
     _forwarding = true;
     try {
-      ipcRenderer.send(UPV_LOG_IPC_CHANNEL, msg);
+      invokeTauri('viewer_log', { message: msg });
     } catch (_) {
       /* swallow – must not crash the preload */
     } finally {
@@ -67,71 +69,12 @@ const logo128 =
 // § IPC bridge
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ipc = {
-  send: (channel, ...args) => ipcRenderer.send(channel, ...args),
-  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
-};
-
-contextBridge.exposeInMainWorld('electronAPI', {
-  /** Clears all saved settings. */
-  reset: () => ipc.send('reset'),
-  /** Relaunches the application. */
-  restart: () => ipc.send('restart'),
-  /** Opens the configuration page without resetting settings. */
-  openConfig: () => ipc.send('openConfig'),
-  /** Opens a URL in the system default browser. */
-  openExternal: (url) => ipc.send('openExternal', url),
-  /** Opens the log file in the system default text viewer. */
-  openLogFile: (logPath) => ipc.send('openLogFile', logPath),
-  /** Opens the DevTools for the current window. */
-  openDevTools: () => ipc.send('openDevTools'),
-  /** Persists the user configuration (active profile). */
-  configSave: (config) => ipc.send('configSave', config),
-  /** Returns the saved configuration for the active profile (or undefined). */
-  configLoad: () => ipc.invoke('configLoad'),
-  /** Toggles fullscreen mode on the main window. */
-  toggleFullscreen: () => ipc.send('toggleFullscreen'),
-
-  // ── Profile API ──────────────────────────────────────────────────────────
-  /** Returns the full profiles array. */
-  profilesLoad: () => ipc.invoke('profilesLoad'),
-  /** Persists the full profiles array. */
-  profilesSave: (profiles) => ipc.send('profilesSave', profiles),
-  /** Returns the active profile ID. */
-  activeProfileGet: () => ipc.invoke('activeProfileGet'),
-  /** Sets the active profile ID. */
-  activeProfileSet: (id) => ipc.send('activeProfileSet', id),
-  /** Returns the startup profile ID (auto-select on launch), or undefined. */
-  startupProfileGet: () => ipc.invoke('startupProfileGet'),
-  /** Sets the startup profile ID. Pass null to clear. */
-  startupProfileSet: (id) => ipc.send('startupProfileSet', id),
-  /** Returns the global startup settings object { profileId, fullscreen, displayIndex }. */
-  startupSettingsGet: () => ipc.invoke('startupSettingsGet'),
-  /** Persists (merges) the global startup settings. */
-  startupSettingsSet: (settings) => ipc.send('startupSettingsSet', settings),
-  /** Returns a list of all connected displays with index, label and bounds. */
-  displaysGet: () => ipc.invoke('displaysGet'),
-  /** Verifies that the configured UniFi console host is reachable. */
-  connectionTest: (url) => ipc.invoke('connectionTest', url),
-  /** Returns non-secret runtime information for on-site troubleshooting. */
-  diagnosticsGet: () => ipc.invoke('diagnosticsGet'),
-  /** Creates a non-secret support report and opens its folder. */
-  supportBundleCreate: () => ipc.invoke('supportBundleCreate'),
-  /** Cycles to the next profile (F10). */
-  switchNextProfile: () => ipc.send('switchNextProfile'),
-  /**
-   * Launches a specific profile by ID directly (no app restart).
-   * Used by profile-select.html to avoid the restart→select loop.
-   */
-  launchProfile: (id) => ipc.send('launchProfile', id),
-});
-
-console.log('[upv] preload initialised – IPC bridge exposed to renderer');
+console.log('[upv] Tauri camera automation initialized');
 
 // Native watchdog heartbeat. If the WebView becomes unresponsive for more
 // than two minutes, the desktop process restarts the viewer automatically.
 if (typeof setInterval === 'function') {
-  setInterval(() => ipc.send('upv:heartbeat'), 30_000);
+  setInterval(() => invokeTauri('heartbeat'), 30_000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,27 +82,53 @@ if (typeof setInterval === 'function') {
 // ─────────────────────────────────────────────────────────────────────────────
 
 window.addEventListener('keydown', (event) => {
+  const target = event.target;
+  const isTyping =
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+  if (isTyping) return;
+
+  if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    event.preventDefault();
+    console.log('[upv] hotkey F - enter camera fullscreen');
+    enterCameraFullscreen();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    console.log('[upv] hotkey Escape - exit camera fullscreen');
+    exitUniFiFullscreen();
+    invokeTauri('set_fullscreen', { fullscreen: false }).catch(() => {});
+    return;
+  }
+
   switch (event.key) {
     case 'F9':
       console.log('[upv] hotkey F9 → restart');
-      ipc.send('restart');
+      invokeTauri('restart');
       break;
     case 'F10':
       if (event.ctrlKey && event.shiftKey) {
         console.log('[upv] technician hotkey → configuration');
-        ipc.send('openConfig');
+        invokeTauri('open_config');
       } else {
         console.log('[upv] hotkey F10 → profile selection');
-        ipc.send('switchNextProfile');
+        invokeTauri('switch_next_profile');
       }
       break;
     case 'F11':
       console.log('[upv] hotkey F11 toggle fullscreen');
-      ipc.send('toggleFullscreen');
+      invokeTauri('toggle_fullscreen');
       event.preventDefault?.();
       break;
   }
 });
+
+function enterCameraFullscreen() {
+  invokeTauri('set_fullscreen', { fullscreen: true }).catch(() => {});
+  enterUniFiFullscreen().catch(() => {});
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // § Liveview automation – entry point
@@ -167,27 +136,40 @@ window.addEventListener('keydown', (event) => {
 
 // Show the loading overlay as early as possible (DOMContentLoaded) so the
 // user sees it immediately instead of waiting for all resources to load.
-window.addEventListener('DOMContentLoaded', () => {
+function prepareCameraOverlay() {
   const ownPages = ['index.html', 'config.html', 'profile-select.html'];
   if (ownPages.some((p) => document.URL.includes(p))) return;
   if (document.URL.startsWith('chrome-error://') || document.URL === 'about:blank') return;
   showOverlay();
-});
+}
 
-window.addEventListener(
-  'load',
-  () => {
-    startLiveviewAutomation().catch(console.error);
-  },
-  { once: true },
-);
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', prepareCameraOverlay, { once: true });
+} else {
+  prepareCameraOverlay();
+}
+
+function startCameraPage() {
+  if (window.__upvAutomationStarted) return;
+  window.__upvAutomationStarted = true;
+  startLiveviewAutomation().catch((error) => {
+    console.error('[upv] camera automation failed:', error);
+    setOverlayStatus('Camera setup needs attention', String(error));
+    invokeTauri('viewer_log', {
+      message: `[upv] camera automation failed: ${String(error)}`,
+    }).catch(() => {});
+  });
+}
+
+startCameraPage();
 
 /**
  * Detects the running Unifi Protect version and delegates to the matching
  * fullscreen handler. Also manages the loading overlay lifecycle.
  */
 async function startLiveviewAutomation() {
-  const config = await ipc.invoke('configLoad');
+  const config = window.__UPV_PROFILE__ || (await invokeTauri('config_load'));
+  if (!config?.url) throw new Error('No active camera profile is available');
 
   // Skip automation on our own HTML pages
   if (
@@ -207,13 +189,30 @@ async function startLiveviewAutomation() {
   }
 
   // Redirect if we landed on an unexpected page
-  if (!currentUrlIncludes(config.url) && !currentUrlIncludes('login?redirect')) {
+  if (isMfaPage()) {
+    console.log('[upv] MFA confirmation required - leaving the UniFi prompt visible');
+    hideOverlay('MFA input required');
+    return;
+  }
+
+  if (isLoginPage()) {
+    console.log('[upv] login page detected - performing auto-login for user:', config.username);
+    setOverlayStatus('Signing in...', `Authenticating as "${config.username}"`);
+    await performLogin(config);
+    console.log('[upv] login submitted - waiting for UniFi to open the camera view');
+    setOverlayStatus('Signing in...', 'Waiting for UniFi to open the camera view');
+    return;
+  }
+
+  if (!currentUrlIncludes(config.url)) {
     console.log('[upv] unexpected URL – redirecting to configured liveview:', config.url);
     window.location.href = config.url;
+    return;
   }
 
   console.log('[upv] starting liveview automation for:', document.URL);
   setOverlayStatus('Connecting\u2026', 'Waiting for Unifi Protect to load');
+  const fullscreenTask = enterUniFiFullscreen();
 
   // Wait for Unifi's own splash screen to appear, then disappear
   const splashAppeared = await waitUntil(
@@ -227,18 +226,8 @@ async function startLiveviewAutomation() {
     console.log('[upv] no Unifi splash screen detected (skipped or already gone)');
   }
   await waitUntil(() => document.querySelectorAll('[data-testid="loader-screen"]').length === 0);
+  await fullscreenTask;
   console.log('[upv] Unifi splash screen gone – page is ready');
-
-  // Auto-login if we ended up on the login page
-  if (currentUrlIncludes('login')) {
-    console.log('[upv] login page detected – performing auto-login for user:', config.username);
-    setOverlayStatus('Logging in\u2026', `Authenticating as \u201C${config.username}\u201D`);
-    await performLogin(config);
-    console.log('[upv] login submitted – waiting for redirect away from login page');
-    setOverlayStatus('Logging in\u2026', 'Waiting for authentication to complete');
-    await waitUntil(() => !currentUrlIncludes('login'));
-    console.log('[upv] login successful – now at:', document.URL);
-  }
 
   setOverlayStatus('Loading cameras\u2026', 'Preparing liveview');
 
@@ -310,7 +299,22 @@ async function startLiveviewAutomation() {
   }
 
   // ── Session renewal ───────────────────────────────────────────────────────
-  await scheduleSessionRenewal(config);
+}
+
+function isLoginPage() {
+  try {
+    return new URL(document.URL).pathname.toLowerCase().includes('/login');
+  } catch (_error) {
+    return currentUrlIncludes('login');
+  }
+}
+
+function isMfaPage() {
+  try {
+    return new URL(document.URL).pathname.toLowerCase().includes('/login/mfa');
+  } catch (_error) {
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -456,7 +460,7 @@ function showOverlay() {
             <p id="${OVERLAY_IDS.sub}">Please wait</p>
             <div id="${OVERLAY_IDS.overlay}_actions">
               <button onclick="location.reload()">Retry now</button>
-              <button onclick="window.electronAPI.openConfig()">Settings</button>
+              <button onclick="invokeTauri('open_config')">Settings</button>
             </div>
         </div>
     `;
@@ -475,7 +479,7 @@ async function showRecoveryState() {
   );
   console.log('[upv] camera load timed out; recovery controls shown');
   try {
-    const settings = await window.electronAPI.startupSettingsGet();
+    const settings = await invokeTauri('startup_settings_get');
     if (settings.autoReconnect !== false) setTimeout(() => location.reload(), 15_000);
   } catch (_) {
     setTimeout(() => location.reload(), 15_000);
@@ -505,13 +509,50 @@ function hideOverlay(reason = 'done') {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function performLogin(credentials) {
-  console.log('[upv] waiting for login button to appear in DOM');
-  await waitUntil(() => document.getElementsByTagName('button').length > 0);
-  console.log('[upv] login form ready – filling credentials');
-  setReactInputValue(document.getElementsByName('username')[0], credentials.username);
-  setReactInputValue(document.getElementsByName('password')[0], credentials.password);
-  console.log('[upv] clicking submit button');
-  simulateClick(document.getElementsByTagName('button')[0]);
+  const usernameSelector =
+    'input[name="username"], input[autocomplete="username"], input[type="email"], #user';
+  const passwordSelector =
+    'input[name="password"], input[autocomplete="current-password"], input[type="password"], #password';
+  const enabledSubmit = () =>
+    [...document.querySelectorAll('button[type="submit"]')].find((button) => !button.disabled);
+
+  console.log('[upv] waiting for login form');
+  const formReady = await waitUntil(
+    () => document.querySelector(usernameSelector) || document.querySelector(passwordSelector),
+    20_000,
+  );
+  if (!formReady) throw new Error('The UniFi login form did not appear');
+
+  const usernameInput = document.querySelector(usernameSelector);
+  let passwordInput = document.querySelector(passwordSelector);
+  if (usernameInput) {
+    console.log('[upv] filling username');
+    setReactInputValue(usernameInput, credentials.username);
+  }
+
+  const rememberLogin = document.querySelector('#shouldSaveLogin');
+  if (rememberLogin && !rememberLogin.checked) {
+    simulateClick(rememberLogin);
+  }
+
+  if (!passwordInput) {
+    const usernameSubmitReady = await waitUntil(() => Boolean(enabledSubmit()), 5_000);
+    if (!usernameSubmitReady) throw new Error('The username step did not become ready');
+    simulateClick(enabledSubmit());
+    const passwordReady = await waitUntil(
+      () => Boolean(document.querySelector(passwordSelector)),
+      20_000,
+    );
+    if (!passwordReady) throw new Error('The password step did not appear');
+    passwordInput = document.querySelector(passwordSelector);
+  }
+
+  console.log('[upv] filling password');
+  setReactInputValue(passwordInput, credentials.password);
+  const passwordSubmitReady = await waitUntil(() => Boolean(enabledSubmit()), 5_000);
+  if (!passwordSubmitReady) throw new Error('The login button did not become ready');
+  console.log('[upv] submitting login');
+  simulateClick(enabledSubmit());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -761,6 +802,62 @@ async function applyLiveviewV4andNewer() {
   console.log('[upv] v4+: done');
 }
 
+/** Enters UniFi's own live-view fullscreen layout if it is not active yet. */
+async function enterUniFiFullscreen() {
+  const revealControls = () => {
+    const x = Math.round(window.innerWidth / 2);
+    const y = Math.max(0, window.innerHeight - 24);
+    const target = document.elementFromPoint(x, y) || document.body;
+    target.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y }),
+    );
+    target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  };
+  const findButton = () =>
+    [...document.querySelectorAll('button')].find((button) => {
+      return [...button.querySelectorAll('path')].some((path) =>
+        (path.getAttribute('d') || '').startsWith('M16 3H4a1 1 0 0 0-1 1v12'),
+      );
+    });
+
+  let button = findButton();
+  const found =
+    Boolean(button) ||
+    (await waitUntil(() => {
+      try {
+        revealControls();
+      } catch (error) {
+        console.debug('[upv] hover reveal unavailable:', String(error));
+      }
+      button = findButton();
+      return Boolean(button);
+    }, 20_000));
+  if (!found) {
+    console.warn('[upv] UniFi fullscreen control was not found');
+    return false;
+  }
+  console.log('[upv] entering UniFi live-view fullscreen mode');
+  simulateClick(button || findButton());
+  await wait(750);
+  return true;
+}
+
+function exitUniFiFullscreen() {
+  const button = findUniFiExitFullscreenButton();
+  if (button) {
+    console.log('[upv] exiting UniFi live-view fullscreen mode');
+    simulateClick(button);
+  }
+}
+
+function findUniFiExitFullscreenButton() {
+  return [...document.querySelectorAll('button')].find((candidate) =>
+    [...candidate.querySelectorAll('path')].some((path) =>
+      (path.getAttribute('d') || '').startsWith('M16.5 7a.5.5'),
+    ),
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // § Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -866,39 +963,4 @@ function resolveProtectVersion(doc, profile) {
     '[upv] resolveProtectVersion: DOM detection failed and no profile fallback set – defaulting to 7.x',
   );
   return '7.x';
-}
-
-/**
- * Waits until ~10 minutes before the session token expires, then reloads
- * to trigger a fresh login. Only runs when the expiry is in localStorage.
- * @param {{ url: string }} config
- */
-async function scheduleSessionRenewal(config) {
-  const raw = localStorage.getItem('portal:localSessionsExpiresAt');
-  if (!raw) {
-    console.log('[upv] no session expiry found in localStorage – session renewal disabled');
-    return;
-  }
-
-  const expiresAt = Number(raw);
-  const renewBeforeMs = 10 * 60 * 1_000; // 10 minutes early
-  const renewAt = new Date(expiresAt - renewBeforeMs);
-
-  console.log(
-    `[upv] session renewal scheduled – will reload at ${renewAt.toLocaleTimeString()} (10 min before expiry)`,
-  );
-
-  await waitUntil(
-    () => !currentUrlIncludes(config.url) || Date.now() > expiresAt - renewBeforeMs,
-    /* timeout  */ -1,
-    /* interval */ 60_000,
-  );
-
-  console.log('[upv] session renewal triggered – showing overlay before reload');
-  showOverlay();
-  setOverlayStatus('Session expired\u2026', 'Reconnecting and logging in again');
-  await wait(1_200);
-
-  console.log('[upv] session renewal – reloading page for fresh login');
-  location.reload();
 }

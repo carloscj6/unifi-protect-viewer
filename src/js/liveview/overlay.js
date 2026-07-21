@@ -75,7 +75,7 @@ function showOverlay() {
     actions.id = `${IDS.overlay}_actions`;
     actions.innerHTML = `
       <button onclick="location.reload()">Retry now</button>
-      <button onclick="window.electronAPI.openConfig()">Settings</button>
+      <button onclick="window.__TAURI__.core.invoke('open_config')">Settings</button>
     `;
     inner.appendChild(actions);
   }, FALLBACK_TIMEOUT_MS);

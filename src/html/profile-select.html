@@ -268,8 +268,8 @@
 
       async function init() {
         renderDebugBlock(document.getElementById('debugBlockContainer'));
-        profiles = (await window.electronAPI.profilesLoad()) || [];
-        const currentActiveId = await window.electronAPI.activeProfileGet();
+        profiles = (await window.__TAURI__.core.invoke('profiles_load')) || [];
+        const currentActiveId = await window.__TAURI__.core.invoke('active_profile_get');
         selectedId = currentActiveId || (profiles[0] && profiles[0].id);
 
         const countText = document.getElementById('profileCountText');
@@ -324,7 +324,7 @@
         updateActiveProfileInfo();
       }
 
-      function selectProfile(id) {
+      async function selectProfile(id) {
         selectedId = id;
         document.querySelectorAll('.upv-profile-item').forEach((el) => {
           el.classList.toggle('upv-profile-item--active', el.dataset.id === id);
@@ -334,10 +334,12 @@
         const startupChecked = document.getElementById('startupCheck').checked;
         if (startupChecked) {
           // Write to the unified startupSettings (keeps fullscreen/display settings intact)
-          window.electronAPI.startupSettingsSet({ profileId: id });
+          await window.__TAURI__.core.invoke('startup_settings_set', {
+            settings: { profileId: id },
+          });
         }
 
-        window.electronAPI.launchProfile(id);
+        await window.__TAURI__.core.invoke('launch_profile', { id: id });
       }
 
       function updateActiveProfileInfo() {
@@ -353,7 +355,7 @@
       }
 
       function openConfig() {
-        window.electronAPI.openConfig();
+        window.__TAURI__.core.invoke('open_config');
       }
 
       function escHtml(str) {
@@ -367,7 +369,7 @@
       // Clear startup profile if checkbox unchecked when leaving
       document.getElementById('startupCheck').addEventListener('change', function () {
         if (!this.checked) {
-          window.electronAPI.startupSettingsSet({ profileId: null });
+          window.__TAURI__.core.invoke('startup_settings_set', { settings: { profileId: null } });
         }
       });
 
