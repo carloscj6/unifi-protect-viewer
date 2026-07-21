@@ -1,280 +1,100 @@
-# <img src="src/img/128.png" width="40" height="40" valign="middle"> Unifi Protect Viewer
-
-A lightweight Tauri 2 app that auto-logs into your Unifi Protect instance and presents the camera liveview in a distraction-free fullscreen layout — no headers, no navigation, no clutter.
-
-> Tested with Unifi Protect **v2.x – v6.x** running on UDM-Pro / UDM-SE / CloudKey Gen2+.
-
-![Preview](screenshots/preview.png)
-
----
-
-## Features
-
-- **Auto-login** — credentials are stored securely and used on every start
-- **Fullscreen liveview** — all Unifi UI chrome is hidden automatically
-- **Multiple profiles** — save any number of NVRs or dashboards and switch between them instantly
-- **Technician configuration** — edit settings and open support with `Ctrl+Shift+F10`
-- **URL-only mode** — quickly switch liveviews without re-entering credentials
-- **Smart credential handling** — password is only overwritten when explicitly changed
-- **Automatic recovery** — retry controls and automatic reload when camera loading stalls
-- **Session auto-renewal** — re-logs in before the session token expires
-- **Windows autostart** — launches the camera wall when the store account signs in
-- **Single instance** — repeated launches focus the running viewer
-- **Self-signed certificates** — accepted automatically
-- **Protected credentials** — passwords are encrypted with Windows DPAPI
-- **On-site support tools** — connection test, durable logs, diagnostics, and support report
-
----
-
-## Screenshots
-
-### Liveview
-
-![Liveview](screenshots/liveview.png)
-
-### Profile selection
-
-![Profile selection](screenshots/profile-selection.png)
-
-### Configuration – Connection / Profiles
-
-![Configuration – Connection / Profiles](screenshots/configuration-connection.png)
-
-### Configuration – Startup
-
-![Configuration – Startup](screenshots/configuration-startup.png)
-
-### Loading overlay
-
-![Loading overlay](screenshots/loading.png)
-
-### Error page
-
-![Error page](screenshots/wrong_configuration.png)
-
----
-
-## Profiles
-
-Unifi Protect Viewer supports saving **multiple profiles**. Each profile stores an independent set of:
-
-| Field            | Description                                                                  |
-| ---------------- | ---------------------------------------------------------------------------- |
-| **Profile name** | A label shown in configuration and profile selection (e.g. "Front Entrance") |
-| **Liveview URL** | Full URL to your liveview (copy from the browser address bar)                |
-| **Username**     | Unifi Protect / UnifiOS login                                                |
-| **Password**     | Your password                                                                |
-
-Profiles can point to **different NVRs**, **different dashboards on the same NVR**, or anything else — there are no restrictions.
-
-### Profile selection on startup
-
-When **more than one profile** is saved and no startup profile has been set, the **profile selection screen** is shown on launch. Click any profile to start it immediately.
-
-Check **"Always start with this profile"** to skip the selection screen in the future and go straight to that profile's liveview. You can clear this preference at any time in the configuration editor.
-
-### Managing profiles
-
-Open the configuration editor with `Ctrl+Shift+F10`.
-
-- **Add** a new profile with the **+** button in the sidebar
-- **Switch** between profiles by clicking them in the sidebar
-- **Delete** the active profile with the **Delete** button (at least one profile must remain)
-- **Set a startup profile** by enabling the **"Always start with this profile"** checkbox (only shown when more than one profile exists)
-
-![Configuration – profile editor with sidebar](screenshots/configuration-connection.png)
-
----
-
-## Configuration
-
-Start the application — the setup screen appears automatically on first launch.
-
-| Field            | Description                                                   |
-| ---------------- | ------------------------------------------------------------- |
-| **Profile name** | Optional display label for this profile                       |
-| **Liveview URL** | Full URL to your liveview (copy from the browser address bar) |
-| **Username**     | Unifi Protect / UnifiOS login                                 |
-| **Password**     | Your password                                                 |
-
-### Edit Modes
-
-| Mode          | What changes                                               |
-| ------------- | ---------------------------------------------------------- |
-| **URL only**  | Updates only the liveview URL – credentials stay unchanged |
-| **Full edit** | Allows updating username and/or password                   |
-
-The password field shows `unchanged` until you actually type something. The badge turns orange when a field has been modified.
-
-### Example URLs
-
-```
-# Protect 3.x / 4.x / 5.x
-https://192.168.1.1/protect/dashboard/635e65bd000c1c0387005a5f
-
-# Protect 2.x
-https://192.168.1.1/protect/liveview/635e65bd000c1c0387005a5f
-```
-
----
-
-## Keyboard Shortcuts
-
-| Key                | Action                                                |
-| ------------------ | ----------------------------------------------------- |
-| `F9`               | Restart the application                               |
-| `F10`              | Open profile selection when multiple profiles exist   |
-| `Ctrl+Shift+F10`   | Open technician configuration and support             |
-| `F11`              | Toggle fullscreen                                     |
-
-Configuration remains directly available during first-run setup and from the recovery screen.
-
----
-
-## Installation
-
-Download a pre-built release from the Releases page, or build it yourself (see below).
-
-For a dedicated store PC, follow [Store Camera PC Deployment](docs/STORE_DEPLOYMENT.md).
-
----
-
-## Building
-
-### Prerequisites
-
-```bash
-# Node.js 20+, Rust, and the platform prerequisites from tauri.app
-npm install
-```
-
-### Local builds
-
-```bash
-# Build native installers for the current platform
-npm run build
-```
-
-Bundles are written below `src-tauri/target/release/bundle/`.
-
-### Legacy Electron build options
-
-The `UPV_*` environment variables and portable-build scripts below describe the retired Electron packager and are retained only as migration history. They are not used by Tauri.
-
-All build options are controlled via environment variables — no source files need to be changed.
-
-| Variable             | Default       | Description                              |
-| -------------------- | ------------- | ---------------------------------------- |
-| `UPV_PLATFORM`       | host platform | `win32` · `darwin` · `linux`             |
-| `UPV_ARCH`           | host arch     | `x64` · `ia32` · `arm64`                 |
-| `UPV_PORTABLE`       | `false`       | `true` → portable build                  |
-| `UPV_OUT_DIR`        | `builds`      | output directory                         |
-| `UPV_ENCRYPTION_KEY` | `****`        | encryption key for portable config store |
-
-**PowerShell example:**
-
-```powershell
-$env:UPV_PLATFORM="linux"; $env:UPV_ARCH="arm64"; $env:UPV_PORTABLE="true"
-node scripts/build.js
-```
-
----
-
-## Portable Mode (legacy Electron only)
-
-When `UPV_PORTABLE=true`, the config is stored in a `store/` directory next to the executable instead of the OS user-data folder. All profiles are included. Ideal for USB sticks or kiosk setups.
-
-> **Warning:** Set a strong `UPV_ENCRYPTION_KEY` before distributing portable builds.
-
-Window size/position is **not** persisted in portable mode.
-
----
-
-## Project Structure
-
-```
-src/
-├── main.js                  # Electron entry point
-├── main/
-│   ├── app.js               # App bootstrap & lifecycle
-│   ├── cli.js               # CLI startup argument parser (--monitor, --fullscreen, --profile)
-│   ├── ipc.js               # IPC handler registration
-│   ├── store.js             # Persistent config storage – profiles, startup pref, window bounds
-│   ├── tray.js              # System-tray icon & context menu (incl. profile switcher)
-│   └── window.js            # Main window factory & load-failure handler
-├── html/
-│   ├── config.html          # Configuration / profile editor
-│   ├── profile-select.html  # Profile selection screen (shown on startup with 2+ profiles)
-│   ├── index.html           # Error / connection-failure page
-│   └── shared.css           # Shared design system (dark theme variables, components)
-├── js/
-│   ├── preload.js           # Electron preload – IPC bridge + all liveview automation
-│   └── liveview/            # Reference copies (not loaded at runtime)
-│       ├── utils.js         # Shared DOM utilities
-│       ├── overlay.js       # Loading overlay
-│       ├── login.js         # Auto-login handler
-│       ├── v2.js            # Liveview handler – Protect 2.x
-│       ├── v3.js            # Liveview handler – Protect 3.x
-│       └── v4.js            # Liveview handler – Protect 4.x / 5.x / 6.x / 7.x
-└── img/
-    └── 128.png / 128.ico / 128.icns / 512.png
-
-scripts/
-└── build.js                 # Universal build script (env-var driven)
-```
-
-> **Note on `src/js/liveview/`:** The Electron preload sandbox (`contextIsolation=true`) does not
-> allow loading local files via `require()`. All liveview logic is inlined directly into
-> `preload.js`. The files in `liveview/` are readable reference copies — edit them there and sync
-> changes into the matching section of `preload.js`.
-
-### Data model
-
-Each profile is stored as a JSON object in the encrypted config store:
-
-```jsonc
-{
-  "profiles": [
-    {
-      "id": "uuid-v4",
-      "name": "Living Room NVR",
-      "url": "https://192.168.1.1/protect/dashboard/635e…",
-      "username": "admin",
-      "password": "<encrypted>",
-    },
-  ],
-  "activeProfileId": "uuid-v4", // currently loaded profile
-  "startupProfileId": "uuid-v4", // auto-selected on launch (null = show selector)
-}
-```
-
-Existing single-profile installations are **migrated automatically** on first launch — no data is lost.
-
----
+# Unifi Protect Viewer
+
+A native Tauri 2 viewer for unattended UniFi Protect camera walls on Windows store PCs.
+
+> **Recommended use:** Install this on a dedicated viewer PC that is rarely used for other work or
+> manually rearranged. The app is intentionally designed to reclaim the foreground and restore the
+> camera wall after inactivity, which is useful for unattended displays but intrusive on a normal
+> employee workstation.
+
+## What it does
+
+- Starts with Windows and opens the configured camera wall automatically
+- Runs fullscreen on the selected display
+- Signs into UniFi Protect and removes non-camera interface elements
+- Reuses WebView2's encrypted UniFi session cookies and signs in again when the session expires
+- Enters UniFi's own live-view fullscreen mode in addition to native window fullscreen
+- Returns to the foreground and restores fullscreen after 60 seconds of system inactivity
+- Keeps running in the background when the window is closed with `X`
+- Supports multiple store or camera-wall profiles
+- Retries failed loads and restarts an unresponsive renderer
+- Encrypts saved passwords with Windows DPAPI
+- Provides native connection testing, diagnostics, logs, and support reports
+- Prevents duplicate viewer instances
+
+## Install
+
+Build or download either Windows installer:
+
+- NSIS: `src-tauri/target/release/bundle/nsis/`
+- MSI: `src-tauri/target/release/bundle/msi/`
+
+For an onsite rollout, follow [Store Camera PC Deployment](docs/STORE_DEPLOYMENT.md).
+
+## First setup
+
+1. Open the viewer.
+2. Enter a profile name and the complete UniFi Protect live-view URL.
+3. Enter the dedicated viewer account credentials.
+4. Select **Test Connection**.
+5. Save the profile.
+6. In **Startup**, select the profile, display, fullscreen, Windows startup, and reconnect options.
+7. Restart once and complete the deployment acceptance test.
+
+UniFi may require MFA the first time the viewer signs in. Complete that prompt on the viewer PC;
+the trusted WebView2 session is then reused until UniFi invalidates it.
+
+Closing the window with `X` hides it instead of terminating the viewer. After 60 seconds without
+system-wide keyboard or mouse input, the native background watchdog shows the window, brings it to
+the foreground, and restores both native and UniFi fullscreen. To stop it completely, end the
+process or uninstall/disable it for that PC.
+
+The connection test is a native Rust command. Renderer pages call explicit Tauri commands through
+`window.__TAURI__.core.invoke`; there is no compatibility API or generic frontend channel.
+
+## Keyboard controls
+
+| Shortcut           | Action                                      |
+| ------------------ | ------------------------------------------- |
+| `F9`               | Restart viewer                              |
+| `F10`              | Open profile selection                      |
+| `Ctrl+Shift+F10`   | Open technician configuration and support   |
+| `F11`              | Toggle fullscreen                           |
+| `F`                | Enter native and UniFi camera fullscreen    |
+| `Esc`              | Exit native and UniFi camera fullscreen     |
 
 ## Development
 
-```bash
+Prerequisites are Node.js 20+, Rust, and the current Tauri Windows prerequisites.
+
+```powershell
+npm install
 npm start
 ```
 
-Hot-reload via `electron-reloader`. Open DevTools via right-click inside the window.  
-All automation steps emit `[upv]`-prefixed log messages so you can follow every step in the console.
+Run validation and build optimized installers:
 
----
+```powershell
+npm test
+cd src-tauri
+cargo test
+cd ..
+npm run build
+```
+
+## Architecture
+
+```text
+src-tauri/src/lib.rs    Native commands, storage, security, window lifecycle, watchdog
+src/html/               Setup, profile selection, recovery, and support pages
+src/js/preload.js       Camera-page automation injected by Tauri
+src/js/liveview/        Readable reference copies of automation sections
+```
+
+The native backend restricts navigation to local viewer pages and configured UniFi origins.
+Sensitive commands are unavailable from camera pages. Passwords are encrypted before storage and
+excluded from generated support reports.
 
 ## License
 
-[MIT](LICENSE) © 2026 Sebastian Loer — use it however you like, commercially or otherwise. Attribution appreciated.
-
----
-
-## AI Disclosure
-
-The refactoring, feature additions and documentation of this project were developed with the assistance of **Claude Sonnet 4.6** (Anthropic) via GitHub Copilot.
-
----
-
-## History
-
-Originally inspired by the [Unifi Protect Chrome App](https://github.com/digital195/unifi-protect-viewer/tree/caaec3523361f5494338b333426cc1af5a48707a) by remcotjeerdsma / digital195, which first had the idea of stripping the Unifi Protect UI chrome to show a clean camera liveview.
+[MIT](LICENSE)
