@@ -15,32 +15,32 @@
 }
 
 :root {
-  --bg-primary: #0f1117;
-  --bg-secondary: #181c27;
-  --bg-card: #1e2336;
-  --bg-input: #252b3b;
-  --border: #2e3650;
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f7f9fc;
+  --border: #dce2ea;
   --border-focus: #006fff;
-  --border-hover: #3e4d6a;
+  --border-hover: #aeb9c8;
   --accent: #006fff;
-  --accent-hover: #0059d4;
-  --accent-light: rgba(0, 111, 255, 0.12);
-  --text-primary: #e8ecf4;
-  --text-secondary: #8b93a8;
-  --text-muted: #55607a;
-  --error-bg: rgba(255, 60, 60, 0.1);
-  --error-border: #ff3c3c;
-  --error-text: #ff7070;
-  --success-bg: rgba(0, 200, 100, 0.1);
-  --success-border: #00c864;
-  --success-text: #00e87a;
-  --warn-bg: rgba(255, 160, 0, 0.08);
-  --warn-border: #ffa000;
-  --warn-text: #ffb733;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --accent-hover: #005bd6;
+  --accent-light: rgba(0, 111, 255, 0.09);
+  --text-primary: #17212f;
+  --text-secondary: #5d6b7d;
+  --text-muted: #8995a5;
+  --error-bg: #fff4f4;
+  --error-border: #e5484d;
+  --error-text: #c62f35;
+  --success-bg: #f1fbf6;
+  --success-border: #2a9d61;
+  --success-text: #197a49;
+  --warn-bg: #fff9eb;
+  --warn-border: #d99a16;
+  --warn-text: #8c6415;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --shadow-card: 0 1px 3px rgba(23, 33, 47, 0.08);
 }
 
 html,
@@ -64,7 +64,7 @@ body {
 
 .upv-layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 292px 1fr;
   height: 100vh;
   overflow: hidden;
 }
@@ -75,7 +75,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 16px 18px 14px;
+  padding: 15px 16px 13px;
   margin-bottom: 12px;
 }
 
@@ -179,7 +179,7 @@ kbd.upv-kbd {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 16px 18px;
+  padding: 18px 16px;
   height: 100vh;
   overflow-y: auto;
   /* Sidebar scrolls independently */
@@ -191,20 +191,20 @@ kbd.upv-kbd {
 .upv-brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .upv-brand__logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
 .upv-brand__name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 650;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -272,7 +272,7 @@ kbd.upv-kbd {
   justify-content: center;
   gap: 6px;
   padding: 7px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -297,11 +297,11 @@ kbd.upv-kbd {
 }
 .upv-btn--primary:hover {
   background: var(--accent-hover);
-  box-shadow: 0 2px 12px rgba(0, 111, 255, 0.35);
+  box-shadow: 0 2px 7px rgba(0, 111, 255, 0.22);
 }
 .upv-btn--primary:disabled {
-  background: #1c3060;
-  color: #4a6090;
+  background: #d8e5f7;
+  color: #7f98b8;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -363,7 +363,7 @@ kbd.upv-kbd {
 /* ── Main content area ───────────────────────────────────────────────────── */
 
 .upv-main {
-  background: var(--bg-primary);
+  background: linear-gradient(180deg, #f7f9fc 0%, #f2f5f9 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -379,7 +379,7 @@ kbd.upv-kbd {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 28px 32px;
+  padding: 26px 28px;
   max-width: 540px;
   width: 100%;
   box-shadow: var(--shadow-card);
@@ -395,7 +395,7 @@ kbd.upv-kbd {
 .upv-card__icon {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;

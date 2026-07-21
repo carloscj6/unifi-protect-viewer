@@ -1,6 +1,6 @@
 {
   "name": "unifi-protect-viewer",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Unattended fullscreen UniFi Protect camera viewer for store and kiosk PCs.",
   "scripts": {
     "start": "tauri dev",

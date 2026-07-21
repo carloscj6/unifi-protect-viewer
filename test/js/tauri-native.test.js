@@ -14,6 +14,7 @@ const pages = [
   'src/html/debug-block.js',
 ].map((file) => fs.readFileSync(path.join(root, file), 'utf8'));
 const preload = fs.readFileSync(path.join(root, 'src/js/preload.js'), 'utf8');
+const sharedCss = fs.readFileSync(path.join(root, 'src/html/shared.css'), 'utf8');
 
 test('connection screen calls the native Rust command directly', () => {
   assert.match(pages[0], /window\.__TAURI__\.core\.invoke\('connection_test'/);
@@ -104,4 +105,11 @@ test('closing the window keeps the native idle watchdog running', () => {
   assert.match(rust, /api\.prevent_close\(\)/);
   assert.match(rust, /window\.hide\(\)/);
   assert.match(rust, /viewer closed to background/);
+});
+
+test('local screens use the minimal UniFi blue and white theme', () => {
+  assert.match(sharedCss, /--accent:\s*#006fff/i);
+  assert.match(sharedCss, /--bg-secondary:\s*#ffffff/i);
+  assert.match(sharedCss, /--bg-card:\s*#ffffff/i);
+  assert.match(sharedCss, /--text-primary:\s*#17212f/i);
 });
